@@ -1,0 +1,18 @@
+.layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.icon {
+  position: absolute;
+  opacity: 0.18;
+}
+
+@media (max-width: 768px) {
+  .icon {
+    opacity: 0.12;
+    transform: scale(0.75);
+  }
+}
