@@ -5,7 +5,7 @@
   border-radius: var(--radius-xl);
   padding: var(--space-2xl) var(--space-lg);
   box-shadow: 0 20px 60px rgba(10, 12, 20, 0.35);
-  overflow: visible;
+  overflow: hidden;
 }
 
 .panel::before {
@@ -25,6 +25,24 @@
   margin-bottom: var(--space-xl);
 }
 
+.demoToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--space-sm);
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-dark-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.demoToggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .title {
   font-size: var(--fs-h2);
   color: var(--text-dark-primary);
@@ -36,125 +54,91 @@
   color: var(--text-dark-secondary);
 }
 
-.grid {
+/* ---------- Horizontal stat bar ---------- */
+.bar {
   position: relative;
   z-index: 1;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-md);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
 }
 
 .card {
-  position: relative;
-  background: var(--card-dark-bg);
-  border: 1px solid var(--card-dark-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
-  overflow: hidden;
-  cursor: default;
-  transition: background var(--transition-base), border-color var(--transition-base),
-    box-shadow var(--transition-base), transform var(--transition-base);
-}
-
-.card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--accent-color, var(--accent-indigo));
+  flex: 1 1 150px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  transition: background var(--transition-base), border-color var(--transition-base);
 }
 
 .card:hover {
-  background: var(--gradient-primary);
-  border-color: transparent;
-  box-shadow: 0 16px 40px rgba(108, 92, 231, 0.4);
-  transform: translateY(-6px);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--accent-color, var(--accent-indigo));
+}
+
+.card:active {
+  background: var(--accent-bg, rgba(108, 92, 231, 0.16));
+  border-color: var(--accent-color, var(--accent-indigo));
+  transform: scale(0.97);
 }
 
 .iconWrap {
-  width: 44px;
-  height: 44px;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: var(--space-md);
   background: var(--accent-bg, rgba(108, 92, 231, 0.14));
   color: var(--accent-color, var(--accent-indigo));
-  transition: background var(--transition-base), color var(--transition-base);
 }
 
-.card:hover .iconWrap {
-  background: rgba(255, 255, 255, 0.22);
-  color: #ffffff;
+.textCol {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .value {
   font-family: var(--font-heading);
-  font-size: 2rem;
+  font-size: 1.35rem;
   font-weight: 700;
   color: var(--text-dark-primary);
   line-height: 1.1;
-  margin-bottom: 4px;
-  transition: color var(--transition-base);
-}
-
-.card:hover .value {
-  color: #ffffff;
+  white-space: nowrap;
 }
 
 .unit {
-  font-size: var(--fs-body);
+  font-size: var(--fs-small);
   font-weight: 600;
   color: var(--text-dark-secondary);
 }
 
-.card:hover .unit {
-  color: rgba(255, 255, 255, 0.85);
-}
-
 .label {
-  font-size: var(--fs-small);
+  font-size: var(--fs-xs);
   color: var(--text-dark-secondary);
   font-weight: 500;
-  transition: color var(--transition-base);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.card:hover .label {
-  color: rgba(255, 255, 255, 0.9);
-}
-
-/* ---------- Top-strip accent colors (kept for visual variety) ---------- */
-.indigo {
-  --accent-color: var(--accent-indigo);
-  --accent-bg: rgba(108, 92, 231, 0.16);
-}
-.emerald {
-  --accent-color: var(--accent-emerald);
-  --accent-bg: rgba(34, 197, 94, 0.16);
-}
-.amber {
-  --accent-color: var(--accent-amber);
-  --accent-bg: rgba(255, 176, 32, 0.18);
-}
-.gold {
-  --accent-color: #e0b030;
-  --accent-bg: rgba(224, 176, 48, 0.18);
-}
-.teal {
-  --accent-color: var(--accent-teal);
-  --accent-bg: rgba(0, 217, 181, 0.16);
-}
-.rose {
-  --accent-color: var(--accent-rose);
-  --accent-bg: rgba(244, 63, 94, 0.16);
-}
+/* ---------- Accent Variants ---------- */
+.indigo { --accent-color: var(--accent-indigo); --accent-bg: rgba(108, 92, 231, 0.16); }
+.emerald { --accent-color: var(--accent-emerald); --accent-bg: rgba(34, 197, 94, 0.16); }
+.amber { --accent-color: var(--accent-amber); --accent-bg: rgba(255, 176, 32, 0.18); }
+.gold { --accent-color: #e0b030; --accent-bg: rgba(224, 176, 48, 0.18); }
+.teal { --accent-color: var(--accent-teal); --accent-bg: rgba(0, 217, 181, 0.16); }
+.rose { --accent-color: var(--accent-rose); --accent-bg: rgba(244, 63, 94, 0.16); }
 
 @media (max-width: 900px) {
-  .grid {
-    grid-template-columns: repeat(2, 1fr);
+  .card {
+    flex: 1 1 45%;
   }
 }
 
@@ -163,11 +147,11 @@
     padding: var(--space-xl) var(--space-md);
   }
 
-  .grid {
-    grid-template-columns: 1fr;
+  .card {
+    flex: 1 1 100%;
   }
 
   .value {
-    font-size: 1.75rem;
+    font-size: 1.2rem;
   }
 }

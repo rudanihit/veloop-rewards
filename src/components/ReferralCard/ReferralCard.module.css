@@ -24,8 +24,9 @@
   flex-direction: column;
   gap: 4px;
   min-width: 0;
+  flex: 1;
+  overflow: hidden;
 }
-
 .label {
   font-size: var(--fs-xs);
   color: var(--text-dark-muted);
@@ -45,15 +46,23 @@
 .valueSmall {
   font-size: var(--fs-body);
   color: var(--text-dark-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 100%;
+  display: block;
+  word-break: break-all;
+  overflow-wrap: break-word;
+  white-space: normal;
 }
-
 .divider {
   height: 1px;
   background: var(--glass-border);
   margin: var(--space-md) 0;
+}
+
+
+
+.copyBtnWrap {
+  position: relative;
+  flex-shrink: 0;
 }
 
 .copyBtn {
@@ -76,9 +85,9 @@
 }
 
 .copyBtn:active {
-  transform: translateY(0);
+  transform: translateY(0) scale(0.96);
+  box-shadow: var(--shadow-glow-teal);
 }
-
 @media (max-width: 600px) {
   .row {
     flex-direction: column;

@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Trophy, Target, Megaphone } from 'lucide-react';
 import { referralInfo, rewards } from '../../utils/dummyData';
 import styles from './ReferralProgress.module.css';
+import CoinScatterBackground from '../common/CoinScatterBackground';
 
 function getNextMilestone(current) {
   const upcoming = rewards
@@ -26,6 +27,8 @@ function ReferralProgress() {
       viewport={{ once: true, margin: '-60px' }}
       transition={{ duration: 0.6 }}
     >
+      <CoinScatterBackground />
+
       <motion.div
         className={styles.megaphoneWrap}
         animate={{ scale: [1, 1.18, 1], rotate: [0, -8, 0] }}

@@ -75,4 +75,16 @@
   .floatIcon {
     transform: scale(0.75);
   }
+
+  @media (max-width: 640px) {
+  .floatIcon:nth-child(n + 3) {
+    display: none;
+  }
+
+  .floatIcon {
+    opacity: 0.15;
+  }
 }
+}
+
+

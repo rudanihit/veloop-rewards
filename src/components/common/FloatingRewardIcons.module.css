@@ -16,3 +16,20 @@
     transform: scale(0.75);
   }
 }
+
+@media (max-width: 480px) {
+  .icon:nth-child(1) {
+    top: 2% !important;
+    left: -4% !important;
+  }
+
+  .icon:nth-child(2) {
+    top: 4% !important;
+    left: 82% !important;
+  }
+
+  .icon:nth-child(3),
+  .icon:nth-child(4) {
+    display: none;
+  }
+}

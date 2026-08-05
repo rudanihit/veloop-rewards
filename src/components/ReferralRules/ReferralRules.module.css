@@ -1,11 +1,13 @@
 .panel {
   position: relative;
   width: 100%;
-  background: linear-gradient(155deg, #12151f 0%, #1a1f2e 100%);
+  background: linear-gradient(155deg, #0f1f1c 0%, #142822 100%);
+  border: 1px solid rgba(0, 217, 181, 0.15);
   border-radius: var(--radius-xl);
   padding: var(--space-2xl) var(--space-lg);
-  box-shadow: 0 20px 60px rgba(10, 12, 20, 0.35);
+  box-shadow: 0 20px 60px rgba(10, 20, 18, 0.35);
   overflow: hidden;
+  margin: var(--space-lg) 0;
 }
 
 .panel::before {
@@ -45,9 +47,8 @@
 
 .subtitle {
   font-size: var(--fs-body-lg);
-  color: var(--text-dark-secondary);
+  color: rgba(255, 255, 255, 0.75);
 }
-
 .grid {
   position: relative;
   z-index: 1;
@@ -73,6 +74,16 @@
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(139, 124, 246, 0.35);
   box-shadow: 0 12px 28px rgba(108, 92, 231, 0.25);
+}
+
+.card:active {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(139, 124, 246, 0.4);
+}
+
+.card:active {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(139, 124, 246, 0.4);
 }
 
 .iconWrap {
@@ -108,7 +119,36 @@
 
 @media (max-width: 480px) {
   .panel {
-    padding: var(--space-xl) var(--space-md);
+    padding: var(--space-lg) var(--space-md);
+  }
+
+  .card {
+    padding: var(--space-md);
+  }
+
+  .badgeLayer {
+    display: none;
+  }
+
+
+  .card {
+    padding: var(--space-sm) var(--space-md);
+    gap: var(--space-sm);
+  }
+
+  .iconWrap {
+    width: 32px;
+    height: 32px;
+  }
+
+  .ruleText {
+    font-size: var(--fs-xs);
+    padding-top: 4px;
+  }
+
+  .floatBadge {
+    opacity: 0.08;
+    transform: scale(0.55);
   }
 
   .card {

@@ -6,7 +6,7 @@
   border-radius: var(--radius-xl);
   padding: var(--space-lg) var(--space-xl);
   box-shadow: 0 20px 60px rgba(30, 20, 60, 0.35);
-  overflow: visible;
+  overflow: hidden;;
   margin: var(--space-lg) 0;
 }
 
@@ -93,7 +93,7 @@
   height: 12px;
   border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.08);
-  overflow: visible;
+  overflow: hidden;
   margin-bottom: var(--space-sm);
 }
 

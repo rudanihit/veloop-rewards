@@ -4,6 +4,7 @@ import { Lock, CheckCircle2, Sparkles } from 'lucide-react';
 import { rewards, referralInfo } from '../../utils/dummyData';
 import FloatingOrbs from '../common/FloatingOrbs';
 import styles from './RewardsSection.module.css';
+import CoinScatterBackground from '../common/CoinScatterBackground';
 
 function TiltCard({ reward, index, unlocked }) {
   const ref = useRef(null);
@@ -66,6 +67,7 @@ function RewardsSection() {
 
   return (
     <div className={styles.panel}>
+      <CoinScatterBackground />
       <FloatingOrbs />
 
       <motion.div

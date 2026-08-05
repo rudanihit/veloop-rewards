@@ -69,6 +69,11 @@
   box-shadow: 0 10px 24px rgba(37, 211, 102, 0.4);
 }
 
+.whatsapp:active {
+  box-shadow: 0 6px 16px rgba(37, 211, 102, 0.5);
+  transform: scale(0.95);
+}
+
 .instagram {
   background: linear-gradient(135deg, #f58529, #dd2a7b 50%, #8134af 100%);
   border-color: transparent;

@@ -65,6 +65,43 @@
   box-shadow: 0 8px 30px rgba(108, 92, 231, 0.2);
 }
 
+.card:active {
+  background: linear-gradient(155deg, rgba(108, 92, 231, 0.3) 0%, rgba(0, 217, 181, 0.2) 100%) !important;
+  border-color: rgba(0, 217, 181, 0.5) !important;
+}
+
+.card:active .rewardTitle {
+  color: #ffffff !important;
+}
+
+.card:active .condition {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.card:active .sparkleIcon {
+  opacity: 1 !important;
+  color: var(--accent-amber) !important;
+}
+
+.locked:active,
+.unlocked:active {
+  background: var(--gradient-primary) !important;
+  border-color: transparent !important;
+}
+
+.locked:active .rewardTitle,
+.unlocked:active .rewardTitle,
+.locked:active .condition,
+.unlocked:active .condition {
+  color: #fff !important;
+}
+
+.locked:active .sparkleIcon,
+.unlocked:active .sparkleIcon {
+  color: #fff !important;
+  opacity: 1 !important;
+}
+
 .cardInner {
   position: relative;
   z-index: 1;
@@ -151,9 +188,20 @@
 }
 
 @media (max-width: 560px) {
-  .panel {
-    padding: var(--space-xl) var(--space-md);
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .section {
     perspective: none;
+  }
+
+  .card {
+    transform: none !important;
+  }
+
+  .card:active {
+    background: linear-gradient(155deg, rgba(108, 92, 231, 0.22) 0%, rgba(0, 217, 181, 0.15) 100%);
   }
 
   .grid {
@@ -164,3 +212,4 @@
     transform: none !important;
   }
 }
+

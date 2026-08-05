@@ -4,6 +4,7 @@ import { ChevronDown, HelpCircle } from 'lucide-react';
 import { faqData } from '../../utils/dummyData';
 import FloatingOrbs from '../common/FloatingOrbs';
 import styles from './FAQ.module.css';
+import CoinScatterBackground from '../common/CoinScatterBackground';
 
 function FAQItem({ item, isOpen, onToggle }) {
   return (
@@ -49,6 +50,7 @@ function FAQ() {
 
   return (
     <div className={styles.panel}>
+      <CoinScatterBackground />
       <FloatingOrbs />
 
       <motion.div

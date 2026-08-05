@@ -3,6 +3,7 @@ import { Lock, GitBranch, Ban, ShieldAlert, LineChart, CheckCircle } from 'lucid
 import { referralRules } from '../../utils/dummyData';
 import FloatingOrbs from '../common/FloatingOrbs';
 import styles from './ReferralRules.module.css';
+import CoinScatterBackground from '../common/CoinScatterBackground';
 
 const RULE_ICONS = [Lock, GitBranch, CheckCircle, Ban, ShieldAlert, LineChart];
 
@@ -56,6 +57,7 @@ function FloatingBadges() {
 function ReferralRules() {
   return (
     <div className={styles.panel}>
+      <CoinScatterBackground />
       <FloatingOrbs />
       <FloatingBadges />
 
