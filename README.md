@@ -31,30 +31,31 @@ A complete UI/UX redesign of the VELoop Rewards Referral Page, built as part of 
 
 ## Folder Structure
 
+```
 src/
 ├── components/
-│ ├── Hero/
-│ ├── ReferralCard/
-│ ├── ShareButtons/
-│ ├── StatsSection/
-│ ├── ReferralProgress/
-│ ├── RewardsSection/
-│ ├── RewardTimeline/
-│ ├── ReferralRules/
-│ ├── FAQ/
-│ ├── Header/
-│ ├── Footer/
-│ └── common/ # Reusable: FloatingOrbs, EmptyState, Toast, ConfettiBurst
+│   ├── Hero/
+│   ├── ReferralCard/
+│   ├── ShareButtons/
+│   ├── StatsSection/
+│   ├── ReferralProgress/
+│   ├── RewardsSection/
+│   ├── RewardTimeline/
+│   ├── ReferralRules/
+│   ├── FAQ/
+│   ├── Header/
+│   ├── Footer/
+│   └── common/          # Reusable: FloatingOrbs, EmptyState, Toast, ConfettiBurst
 ├── pages/
-│ └── ReferralPage.jsx
+│   └── ReferralPage.jsx
 ├── hooks/
-│ └── useWebShare.js
+│   └── useWebShare.js
 ├── utils/
-│ └── dummyData.js
+│   └── dummyData.js
 └── styles/
-├── variables.css # Design tokens (colors, spacing, typography)
-└── global.css
-
+    ├── variables.css     # Design tokens (colors, spacing, typography)
+    └── global.css
+```
 
 ## Installation & Setup
 
