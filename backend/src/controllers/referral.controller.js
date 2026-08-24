@@ -10,8 +10,8 @@ import ApiResponse from "../utils/ApiResponse.js";
 
 const createReferralController = async (req, res, next) => {
   try {
-    const { referredUserId, referralCode, attributionSource } = req.body;
-
+    const { referredUserId, referralCode, attributionSource, deviceId, } =
+      req.body;
     const referrerUserId = req.user?.id;
 
     if (!referrerUserId) {
@@ -31,6 +31,7 @@ const createReferralController = async (req, res, next) => {
       referredUserId,
       referralCode,
       attributionSource,
+      deviceId,
     });
 
     return res
@@ -67,13 +68,15 @@ const getMyReferralDashboardController = async (req, res, next) => {
 
     const dashboard = await getMyReferralDashboard(userId);
 
-    return res.status(200).json(
-      new ApiResponse(
-        200,
-        dashboard,
-        "Referral dashboard fetched successfully"
-      )
-    );
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          dashboard,
+          "Referral dashboard fetched successfully",
+        ),
+      );
   } catch (error) {
     next(error);
   }
@@ -92,18 +95,17 @@ const getReferralProgressController = async (req, res, next) => {
       throw new Error("referralId is required");
     }
 
-    const progress = await getReferralProgress(
-      referralId,
-      userId
-    );
+    const progress = await getReferralProgress(referralId, userId);
 
-    return res.status(200).json(
-      new ApiResponse(
-        200,
-        progress,
-        "Referral progress fetched successfully"
-      )
-    );
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          progress,
+          "Referral progress fetched successfully",
+        ),
+      );
   } catch (error) {
     next(error);
   }

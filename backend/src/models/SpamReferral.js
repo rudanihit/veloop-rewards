@@ -38,7 +38,6 @@ const spamReferralSchema = new mongoose.Schema(
       type: String,
       enum: ["PENDING", "CONFIRMED", "DISMISSED"],
       default: "PENDING",
-      index: true,
     },
 
     reviewedAt: {
@@ -52,16 +51,13 @@ const spamReferralSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 spamReferralSchema.index({ referrerUserId: 1 });
 spamReferralSchema.index({ referredUserId: 1 });
 spamReferralSchema.index({ status: 1 });
 
-const SpamReferral = mongoose.model(
-  "SpamReferral",
-  spamReferralSchema
-);
+const SpamReferral = mongoose.model("SpamReferral", spamReferralSchema);
 
 export default SpamReferral;

@@ -5,12 +5,15 @@ import ReferralProgress from "../models/ReferralProgress.js";
 import RewardMilestone from "../models/RewardMilestone.js";
 import ReferralReward from "../models/ReferralReward.js";
 import RewardTransaction from "../models/RewardTransaction.js";
+import { assessReferralRisk } from "./fraudDetection.service.js";
+import SpamReferral from "../models/SpamReferral.js";
 
 const createReferral = async ({
   referrerUserId,
   referredUserId,
   referralCode,
   attributionSource,
+  deviceId,
 }) => {
   // 1. Find the referrer using the referral code
   const referrer = await User.findOne({
@@ -42,14 +45,42 @@ const createReferral = async ({
     throw new Error("User has already been referred");
   }
 
+  // 4.1. Assess referral fraud risk
+  const riskAssessment = await assessReferralRisk({
+    referrerUserId: referrer._id,
+    referredUserId: referredUser._id,
+    deviceId,
+  });
+
+  // 4.2. Reject high-risk referrals
+  if (riskAssessment.status === "REJECTED") {
+    throw new Error(riskAssessment.reason);
+  }
+
+  // 4.3. Determine referral status
+  const referralStatus =
+    riskAssessment.status === "FRAUD_REVIEW" ? "FRAUD_REVIEW" : "PENDING";
+
   // 5. Create the referral
   const referral = await Referral.create({
     referrerUserId: referrer._id,
     referredUserId: referredUser._id,
     referralCode: referrer.referralCode,
     attributionSource,
-    status: "PENDING",
+    status: referralStatus,
   });
+
+  // 5.1. Create spam referral record for manual review
+  if (riskAssessment.status === "FRAUD_REVIEW") {
+    await SpamReferral.create({
+      referralId: referral._id,
+      referrerUserId: referrer._id,
+      referredUserId: referredUser._id,
+      reason: riskAssessment.reason,
+      riskScore: riskAssessment.riskScore,
+      status: "PENDING",
+    });
+  }
 
   // 6. Create progress tracking for the referral
   await ReferralProgress.create({
@@ -91,9 +122,7 @@ const getReferralStats = async (userId) => {
 
 const getMyReferralDashboard = async (userId) => {
   // 1. Find the authenticated user
-  const user = await User.findById(userId).select(
-    "email referralCode"
-  );
+  const user = await User.findById(userId).select("email referralCode");
 
   if (!user) {
     throw new Error("User not found");
@@ -119,8 +148,7 @@ const getMyReferralDashboard = async (userId) => {
 
   const spamReferrals = referrals.filter(
     (referral) =>
-      referral.status === "SPAM" ||
-      referral.status === "FRAUD_REVIEW",
+      referral.status === "SPAM" || referral.status === "FRAUD_REVIEW",
   ).length;
 
   // 4. Get reward totals from the reward ledger
@@ -175,9 +203,7 @@ const getMyReferralDashboard = async (userId) => {
 
   // 8. Add progress information to each referral
   const recentReferrals = referrals.map((referral) => {
-    const progress = progressMap.get(
-      referral._id.toString(),
-    );
+    const progress = progressMap.get(referral._id.toString());
 
     return {
       referralId: referral._id,
@@ -223,9 +249,7 @@ const getReferralProgress = async (referralId, userId) => {
 
   // 2. Only the referrer can view this referral's progress
   if (referral.referrerUserId.toString() !== userId.toString()) {
-    throw new Error(
-      "You are not authorized to view this referral"
-    );
+    throw new Error("You are not authorized to view this referral");
   }
 
   // 3. Find referral progress
@@ -253,19 +277,14 @@ const getReferralProgress = async (referralId, userId) => {
   }).lean();
 
   const issuedMilestoneIds = new Set(
-    issuedRewards.map((reward) =>
-      reward.milestoneId.toString()
-    )
+    issuedRewards.map((reward) => reward.milestoneId.toString()),
   );
 
   // 6. Determine milestone status
   const milestoneStatus = milestones.map((milestone) => {
-    const reached =
-      progress.eligibleAdsWatched >= milestone.requiredAds;
+    const reached = progress.eligibleAdsWatched >= milestone.requiredAds;
 
-    const rewarded = issuedMilestoneIds.has(
-      milestone._id.toString()
-    );
+    const rewarded = issuedMilestoneIds.has(milestone._id.toString());
 
     return {
       milestoneId: milestone._id,
@@ -280,17 +299,12 @@ const getReferralProgress = async (referralId, userId) => {
 
   // 7. Find next milestone
   const nextMilestone = milestoneStatus.find(
-    (milestone) =>
-      !milestone.reached || !milestone.rewarded
+    (milestone) => !milestone.reached || !milestone.rewarded,
   );
 
   // 8. Calculate remaining ads
   const adsRemaining = nextMilestone
-    ? Math.max(
-        nextMilestone.requiredAds -
-          progress.eligibleAdsWatched,
-        0
-      )
+    ? Math.max(nextMilestone.requiredAds - progress.eligibleAdsWatched, 0)
     : 0;
 
   return {

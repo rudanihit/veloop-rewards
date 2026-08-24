@@ -1,5 +1,6 @@
 import AdEvent from "../models/AdEvent.js";
 import ReferralProgress from "../models/ReferralProgress.js";
+import Referral from "../models/Referral.js";
 import { processReferralRewards } from "./reward.service.js";
 
 const recordAdEvent = async ({
@@ -24,6 +25,18 @@ const recordAdEvent = async ({
   if (!progress) {
     throw new Error("Referral progress not found");
   }
+
+  // Find the referral associated with this progress
+const referral = await Referral.findById(progress.referralId);
+
+if (!referral) {
+  throw new Error("Referral not found");
+}
+
+// Only pending referrals can accumulate eligible ad progress
+if (referral.status !== "PENDING") {
+  throw new Error("Referral is not eligible for ad progress");
+}
 
   // Create the ad event
   const adEvent = await AdEvent.create({
