@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-
 import User from "../src/models/User.js";
 import { assessReferralRisk } from "../src/services/fraudDetection.service.js";
+import Referral from "../src/models/Referral.js";
 
 dotenv.config();
 
@@ -17,12 +17,18 @@ const runTest = async () => {
     });
 
     const referredUser = await User.findOne({
-      email: "testreferred@veloop.local",
+      email: "referred@veloop.local",
     });
 
     if (!referrer || !referredUser) {
       throw new Error("Test users not found");
     }
+
+    const existingReferral = await Referral.findOne({
+      referredUserId: referredUser._id,
+    });
+
+    console.log("Existing referral for referred:", existingReferral);
 
     const result = await assessReferralRisk({
       referrerUserId: referrer._id,

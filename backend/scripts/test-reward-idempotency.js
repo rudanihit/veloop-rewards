@@ -5,8 +5,7 @@ import { processReferralRewards } from "../src/services/reward.service.js";
 import ReferralReward from "../src/models/ReferralReward.js";
 import RewardTransaction from "../src/models/RewardTransaction.js";
 
-const referralId = "6a818857f199ea45a43a2026";
-
+const referralId = "6a8c9b859afc659961ad8100";
 const test = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
