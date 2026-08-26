@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, HelpCircle } from 'lucide-react';
-import { faqData } from '../../utils/dummyData';
+import { faqData } from '../../utils/faqData';
 import FloatingOrbs from '../common/FloatingOrbs';
 import styles from './FAQ.module.css';
 import CoinScatterBackground from '../common/CoinScatterBackground';

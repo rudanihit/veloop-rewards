@@ -1,5 +1,6 @@
 import { registerDevice } from "../services/deviceRisk.service.js";
 import ApiResponse from "../utils/ApiResponse.js";
+import ApiError from "../utils/ApiError.js";
 
 const registerDeviceController = async (req, res, next) => {
   try {
@@ -7,11 +8,11 @@ const registerDeviceController = async (req, res, next) => {
     const { deviceId } = req.body;
 
     if (!userId) {
-      throw new Error("Authenticated user not found");
+      throw new ApiError(401, "Authenticated user not found");
     }
 
     if (!deviceId) {
-      throw new Error("deviceId is required");
+      throw new ApiError(400, "deviceId is required");
     }
 
     const result = await registerDevice({
@@ -21,18 +22,10 @@ const registerDeviceController = async (req, res, next) => {
 
     return res
       .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          result,
-          "Device registered successfully"
-        )
-      );
+      .json(new ApiResponse(200, result, "Device registered successfully"));
   } catch (error) {
     next(error);
   }
 };
 
-export {
-  registerDeviceController,
-};
+export { registerDeviceController };

@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import UserDevice from "../models/UserDevice.js";
+import ApiError from "../utils/ApiError.js";
 
 const hashDeviceId = (deviceId) => {
   return crypto
@@ -10,8 +11,8 @@ const hashDeviceId = (deviceId) => {
 
 const registerDevice = async ({ userId, deviceId }) => {
   if (!deviceId) {
-    throw new Error("deviceId is required");
-  }
+  throw new ApiError(400, "deviceId is required");
+}
 
   const deviceIdHash = hashDeviceId(deviceId);
 

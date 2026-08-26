@@ -2,6 +2,7 @@ import User from "../models/User.js";
 import Referral from "../models/Referral.js";
 import UserDevice from "../models/UserDevice.js";
 import { hashDeviceId } from "./deviceRisk.service.js";
+import ApiError from "../utils/ApiError.js";
 
 const assessReferralRisk = async ({
   referrerUserId,
@@ -28,7 +29,7 @@ const assessReferralRisk = async ({
   ]);
 
   if (!referrer || !referredUser) {
-    throw new Error("User not found during fraud assessment");
+    throw new ApiError(404, "User not found during fraud assessment");
   }
 
   // 3. Email relationship signal
@@ -69,22 +70,22 @@ const assessReferralRisk = async ({
   }
 
   // 6. Device association signal
-if (deviceId) {
-  const deviceIdHash = hashDeviceId(deviceId);
+  if (deviceId) {
+    const deviceIdHash = hashDeviceId(deviceId);
 
-  const device = await UserDevice.findOne({
-    deviceIdHash,
-  }).lean();
+    const device = await UserDevice.findOne({
+      deviceIdHash,
+    }).lean();
 
-  if (
-    device &&
-    device.userId.toString() !== referrerUserId.toString() &&
-    device.userId.toString() !== referredUserId.toString()
-  ) {
-    riskScore += 40;
-    riskSignals.push("DEVICE_ASSOCIATED_WITH_ANOTHER_USER");
+    if (
+      device &&
+      device.userId.toString() !== referrerUserId.toString() &&
+      device.userId.toString() !== referredUserId.toString()
+    ) {
+      riskScore += 40;
+      riskSignals.push("DEVICE_ASSOCIATED_WITH_ANOTHER_USER");
+    }
   }
-}
 
   // Keep the score within 0–100
   riskScore = Math.min(riskScore, 100);
@@ -102,14 +103,9 @@ if (deviceId) {
     riskScore,
     status,
     reason:
-      riskSignals.length > 0
-        ? riskSignals.join(", ")
-        : "NO_SUSPICIOUS_SIGNALS",
+      riskSignals.length > 0 ? riskSignals.join(", ") : "NO_SUSPICIOUS_SIGNALS",
     signals: riskSignals,
   };
 };
 
-
-export {
-  assessReferralRisk,
-};
+export { assessReferralRisk };

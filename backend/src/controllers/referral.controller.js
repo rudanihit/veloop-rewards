@@ -7,23 +7,37 @@ import {
 } from "../services/referral.service.js";
 
 import ApiResponse from "../utils/ApiResponse.js";
+import ApiError from "../utils/ApiError.js";
 
 const createReferralController = async (req, res, next) => {
   try {
-    const { referredUserId, referralCode, attributionSource, deviceId, } =
+    const { referredUserId, referralCode, attributionSource, deviceId } =
       req.body;
+
     const referrerUserId = req.user?.id;
 
     if (!referrerUserId) {
-      throw new Error("Authenticated user not found");
+      throw new ApiError(
+        401,
+        "Authenticated user not found",
+        "UNAUTHORIZED",
+      );
     }
 
     if (!referredUserId) {
-      throw new Error("referredUserId is required");
+      throw new ApiError(
+        400,
+        "referredUserId is required",
+        "INVALID_REQUEST",
+      );
     }
 
     if (!referralCode) {
-      throw new Error("referralCode is required");
+      throw new ApiError(
+        400,
+        "referralCode is required",
+        "INVALID_REQUEST",
+      );
     }
 
     const referral = await createReferral({
@@ -36,7 +50,13 @@ const createReferralController = async (req, res, next) => {
 
     return res
       .status(201)
-      .json(new ApiResponse(201, referral, "Referral created successfully"));
+      .json(
+        new ApiResponse(
+          201,
+          referral,
+          "Referral created successfully",
+        ),
+      );
   } catch (error) {
     next(error);
   }
@@ -44,14 +64,26 @@ const createReferralController = async (req, res, next) => {
 
 const getMyReferralStats = async (req, res, next) => {
   try {
-    const userId = req.params.userId;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      throw new ApiError(
+        401,
+        "Authenticated user not found",
+        "UNAUTHORIZED",
+      );
+    }
 
     const stats = await getReferralStats(userId);
 
     return res
       .status(200)
       .json(
-        new ApiResponse(200, stats, "Referral statistics fetched successfully"),
+        new ApiResponse(
+          200,
+          stats,
+          "Referral statistics fetched successfully",
+        ),
       );
   } catch (error) {
     next(error);
@@ -63,7 +95,11 @@ const getMyReferralDashboardController = async (req, res, next) => {
     const userId = req.user?.id;
 
     if (!userId) {
-      throw new Error("Authenticated user not found");
+      throw new ApiError(
+        401,
+        "Authenticated user not found",
+        "UNAUTHORIZED",
+      );
     }
 
     const dashboard = await getMyReferralDashboard(userId);
@@ -88,14 +124,25 @@ const getReferralProgressController = async (req, res, next) => {
     const userId = req.user?.id;
 
     if (!userId) {
-      throw new Error("Authenticated user not found");
+      throw new ApiError(
+        401,
+        "Authenticated user not found",
+        "UNAUTHORIZED",
+      );
     }
 
     if (!referralId) {
-      throw new Error("referralId is required");
+      throw new ApiError(
+        400,
+        "referralId is required",
+        "INVALID_REQUEST",
+      );
     }
 
-    const progress = await getReferralProgress(referralId, userId);
+    const progress = await getReferralProgress(
+      referralId,
+      userId,
+    );
 
     return res
       .status(200)
@@ -117,18 +164,35 @@ const completeReferralController = async (req, res, next) => {
     const userId = req.user?.id;
 
     if (!userId) {
-      throw new Error("Authenticated user not found");
+      throw new ApiError(
+        401,
+        "Authenticated user not found",
+        "UNAUTHORIZED",
+      );
     }
 
     if (!referralId) {
-      throw new Error("referralId is required");
+      throw new ApiError(
+        400,
+        "referralId is required",
+        "INVALID_REQUEST",
+      );
     }
 
-    const referral = await completeReferral(referralId, userId);
+    const referral = await completeReferral(
+      referralId,
+      userId,
+    );
 
     return res
       .status(200)
-      .json(new ApiResponse(200, referral, "Referral completed successfully"));
+      .json(
+        new ApiResponse(
+          200,
+          referral,
+          "Referral completed successfully",
+        ),
+      );
   } catch (error) {
     next(error);
   }

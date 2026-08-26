@@ -1,23 +1,29 @@
 import { motion } from 'framer-motion';
 import { Trophy, Target, Megaphone } from 'lucide-react';
-import { referralInfo, rewards } from '../../utils/dummyData';
+
 import styles from './ReferralProgress.module.css';
 import CoinScatterBackground from '../common/CoinScatterBackground';
 
-function getNextMilestone(current) {
-  const upcoming = rewards
-    .filter((r) => r.requiredTasks > 0)
-    .sort((a, b) => a.requiredTasks - b.requiredTasks)
-    .find((r) => r.requiredTasks > current);
-  return upcoming || rewards[rewards.length - 1];
-}
+function ReferralProgress({ dashboard }) {
+  const pendingReferral =
+    dashboard?.recentReferrals?.find(
+      (referral) => referral.status === 'PENDING',
+    );
 
-function ReferralProgress() {
-  const current = referralInfo.totalReferrals;
-  const nextMilestone = getNextMilestone(current);
-  const target = nextMilestone.requiredTasks || current;
-  const percent = Math.min(100, Math.round((current / target) * 100));
-  const remaining = Math.max(0, target - current);
+  const current = pendingReferral?.eligibleAdsWatched ?? 0;
+  const target = 35;
+
+  const percent = Math.min(
+    100,
+    Math.round((current / target) * 100),
+  );
+
+  const remaining = Math.max(
+    0,
+    target - current,
+  );
+
+  const milestoneReached = current >= target;
 
   return (
     <motion.div
@@ -31,7 +37,10 @@ function ReferralProgress() {
 
       <motion.div
         className={styles.megaphoneWrap}
-        animate={{ scale: [1, 1.18, 1], rotate: [0, -8, 0] }}
+        animate={{
+          scale: [1, 1.18, 1],
+          rotate: [0, -8, 0],
+        }}
         transition={{
           duration: 0.6,
           repeat: Infinity,
@@ -41,9 +50,13 @@ function ReferralProgress() {
         aria-hidden="true"
       >
         <Megaphone size={22} />
+
         <motion.span
           className={styles.pulseRing}
-          animate={{ scale: [1, 1.8], opacity: [0.5, 0] }}
+          animate={{
+            scale: [1, 1.8],
+            opacity: [0.5, 0],
+          }}
           transition={{
             duration: 0.8,
             repeat: Infinity,
@@ -58,19 +71,25 @@ function ReferralProgress() {
           <div className={styles.iconBadge}>
             <Target size={20} />
           </div>
+
           <div>
-            <h3 className={styles.title}>Next Milestone</h3>
+            <h3 className={styles.title}>
+              Next Milestone
+            </h3>
+
             <p className={styles.subtitle}>
-              {remaining > 0
-                ? `${remaining} more referrals to unlock ${nextMilestone.title}`
-                : 'Milestone reached!'}
+              {!pendingReferral
+                ? 'No pending referral is currently progressing'
+                : milestoneReached
+                  ? 'Milestone reached!'
+                  : `${remaining} more eligible ad watches to unlock the final referral milestone`}
             </p>
           </div>
         </div>
 
         <div className={styles.rewardChip}>
           <Trophy size={16} />
-          <span>{nextMilestone.title}</span>
+          <span>35 Ad Watches</span>
         </div>
       </div>
 
@@ -78,24 +97,44 @@ function ReferralProgress() {
         <motion.div
           className={styles.barFill}
           initial={{ width: 0 }}
-          whileInView={{ width: `${percent}%` }}
+          whileInView={{
+            width: `${percent}%`,
+          }}
           viewport={{ once: true }}
-          transition={{ duration: 1.2, ease: 'easeOut', delay: 0.2 }}
+          transition={{
+            duration: 1.2,
+            ease: 'easeOut',
+            delay: 0.2,
+          }}
         />
+
         <motion.div
           className={styles.barGlowDot}
-          initial={{ left: '0%', opacity: 0 }}
-          whileInView={{ left: `${percent}%`, opacity: 1 }}
+          initial={{
+            left: '0%',
+            opacity: 0,
+          }}
+          whileInView={{
+            left: `${percent}%`,
+            opacity: 1,
+          }}
           viewport={{ once: true }}
-          transition={{ duration: 1.2, ease: 'easeOut', delay: 0.2 }}
+          transition={{
+            duration: 1.2,
+            ease: 'easeOut',
+            delay: 0.2,
+          }}
         />
       </div>
 
       <div className={styles.bottom}>
         <span className={styles.countLabel}>
-          <strong>{current}</strong> / {target} referrals
+          <strong>{current}</strong> / {target} ad watches
         </span>
-        <span className={styles.percentLabel}>{percent}%</span>
+
+        <span className={styles.percentLabel}>
+          {percent}%
+        </span>
       </div>
     </motion.div>
   );

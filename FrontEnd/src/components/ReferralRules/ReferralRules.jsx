@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Lock, GitBranch, Ban, ShieldAlert, LineChart, CheckCircle } from 'lucide-react';
-import { referralRules } from '../../utils/dummyData';
+import { referralRules } from '../../utils/referralRules';
 import FloatingOrbs from '../common/FloatingOrbs';
 import styles from './ReferralRules.module.css';
 import CoinScatterBackground from '../common/CoinScatterBackground';

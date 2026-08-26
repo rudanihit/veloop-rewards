@@ -1,35 +1,36 @@
 import { recordAdEvent } from "../services/adEvent.service.js";
 import ApiResponse from "../utils/ApiResponse.js";
+import ApiError from "../utils/ApiError.js";
 
 const recordAdEventController = async (req, res, next) => {
   try {
-    const { eventId, eventType, eligible, occurredAt } = req.body;
+    const { eventId, eventType, occurredAt, devVerified } = req.body;
 
     const userId = req.user?.id;
 
+    if (!userId) {
+      throw new ApiError(401, "Authenticated user not found", "UNAUTHORIZED");
+    }
+
     if (!eventId) {
-      throw new Error("eventId is required");
+      throw new ApiError(400, "eventId is required", "INVALID_REQUEST");
     }
 
     const allowedEventTypes = ["VIDEO_AD_COMPLETED"];
 
     if (!eventType) {
-      throw new Error("eventType is required");
+      throw new ApiError(400, "eventType is required", "INVALID_REQUEST");
     }
 
     if (!allowedEventTypes.includes(eventType)) {
-      throw new Error("Invalid eventType");
-    }
-
-    if (typeof eligible !== "boolean") {
-      throw new Error("eligible must be a boolean");
+      throw new ApiError(400, "Invalid eventType", "INVALID_REQUEST");
     }
 
     if (occurredAt !== undefined) {
       const occurredDate = new Date(occurredAt);
 
       if (Number.isNaN(occurredDate.getTime())) {
-        throw new Error("Invalid occurredAt");
+        throw new ApiError(400, "Invalid occurredAt", "INVALID_REQUEST");
       }
 
       const now = Date.now();
@@ -39,13 +40,19 @@ const recordAdEventController = async (req, res, next) => {
       const maxPastTime = now - 24 * 60 * 60 * 1000;
 
       if (occurredTime > maxFutureTime) {
-        throw new Error(
+        throw new ApiError(
+          400,
           "occurredAt cannot be more than 5 minutes in the future",
+          "INVALID_REQUEST",
         );
       }
 
       if (occurredTime < maxPastTime) {
-        throw new Error("occurredAt cannot be older than 24 hours");
+        throw new ApiError(
+          400,
+          "occurredAt cannot be older than 24 hours",
+          "INVALID_REQUEST",
+        );
       }
     }
 
@@ -53,8 +60,8 @@ const recordAdEventController = async (req, res, next) => {
       eventId,
       userId,
       eventType,
-      eligible,
       occurredAt,
+      verified: devVerified === true,
     });
 
     return res

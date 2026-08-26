@@ -5,32 +5,46 @@ import RewardMilestone from "../models/RewardMilestone.js";
 import ReferralReward from "../models/ReferralReward.js";
 import RewardTransaction from "../models/RewardTransaction.js";
 import User from "../models/User.js";
+import ApiError from "../utils/ApiError.js";
+import { createAuditLog } from "./auditLog.service.js";
 
-const processReferralRewards = async (referralId) => {
-  const session = await mongoose.startSession();
+const processReferralRewards = async (referralId, session = null) => {
+  const ownSession = !session;
+  const currentSession = session || (await mongoose.startSession());
 
   try {
-    session.startTransaction();
+    if (ownSession) {
+      currentSession.startTransaction();
+    }
 
     // 1. Find the referral
-    const referral = await Referral.findById(referralId).session(session);
+    const referral = await Referral.findById(referralId).session(
+      currentSession,
+    );
 
     if (!referral) {
-      throw new Error("Referral not found");
+      throw new ApiError(404, "Referral not found", "REFERRAL_NOT_FOUND");
     }
 
     // 2. Find referral progress
     const progress = await ReferralProgress.findOne({
       referralId,
-    }).session(session);
+    }).session(currentSession);
 
     if (!progress) {
-      throw new Error("Referral progress not found");
+      throw new ApiError(
+        404,
+        "Referral progress not found",
+        "REFERRAL_PROGRESS_NOT_FOUND",
+      );
     }
 
     // 3. Only pending referrals can earn ad-watch rewards
     if (referral.status !== "PENDING") {
-      await session.commitTransaction();
+      if (ownSession) {
+        await currentSession.commitTransaction();
+      }
+
       return [];
     }
 
@@ -43,7 +57,7 @@ const processReferralRewards = async (referralId) => {
       },
     })
       .sort({ requiredAds: 1 })
-      .session(session);
+      .session(currentSession);
 
     const rewardsCreated = [];
 
@@ -53,7 +67,7 @@ const processReferralRewards = async (referralId) => {
       const existingReward = await ReferralReward.findOne({
         referralId,
         milestoneId: milestone._id,
-      }).session(session);
+      }).session(currentSession);
 
       if (existingReward) {
         continue;
@@ -71,16 +85,24 @@ const processReferralRewards = async (referralId) => {
       const balanceField = balanceFieldMap[milestone.rewardType];
 
       if (!balanceField) {
-        throw new Error(`Unsupported reward type: ${milestone.rewardType}`);
+        throw new ApiError(
+          500,
+          `Unsupported reward type: ${milestone.rewardType}`,
+          "UNSUPPORTED_REWARD_TYPE",
+        );
       }
 
       // 7. Verify the user exists
-      const user = await User.findById(referral.referrerUserId).session(
-        session,
-      );
+      const user = await User.findById(
+        referral.referrerUserId,
+      ).session(currentSession);
 
       if (!user) {
-        throw new Error("Reward recipient user not found");
+        throw new ApiError(
+          404,
+          "Reward recipient user not found",
+          "REWARD_RECIPIENT_NOT_FOUND",
+        );
       }
 
       // 8. Create referral reward
@@ -94,7 +116,9 @@ const processReferralRewards = async (referralId) => {
         creditedAt: new Date(),
       });
 
-      await referralReward.save({ session });
+      await referralReward.save({
+        session: currentSession,
+      });
 
       // 9. Create reward transaction
       const rewardTransaction = new RewardTransaction({
@@ -110,9 +134,27 @@ const processReferralRewards = async (referralId) => {
         processedAt: new Date(),
       });
 
-      await rewardTransaction.save({ session });
+      await rewardTransaction.save({
+        session: currentSession,
+      });
 
-      // 10. Update the user's actual balance
+      // 10. Create audit log
+      await createAuditLog({
+        action: "REWARD_CREDITED",
+        userId: referral.referrerUserId,
+        referralId,
+        metadata: {
+          referralRewardId: referralReward._id,
+          rewardTransactionId: rewardTransaction._id,
+          rewardType: milestone.rewardType,
+          rewardAmount: milestone.rewardAmount,
+          milestoneId: milestone._id,
+          milestoneName: milestone.name,
+        },
+        session: currentSession,
+      });
+
+      // 11. Update the user's actual balance
       await User.updateOne(
         {
           _id: referral.referrerUserId,
@@ -123,25 +165,31 @@ const processReferralRewards = async (referralId) => {
           },
         },
         {
-          session,
+          session: currentSession,
         },
       );
 
       rewardsCreated.push(referralReward);
     }
 
-    // 11. Commit all changes
-    await session.commitTransaction();
+    // 12. Commit only if this service created the transaction
+    if (ownSession) {
+      await currentSession.commitTransaction();
+    }
 
     return rewardsCreated;
   } catch (error) {
-    // Roll back everything if any operation fails
-    await session.abortTransaction();
+    // Only abort if this service owns the transaction
+    if (ownSession && currentSession.inTransaction()) {
+      await currentSession.abortTransaction();
+    }
 
     throw error;
   } finally {
-    // Always close the session
-    await session.endSession();
+    // Only end the session if this service created it
+    if (ownSession) {
+      await currentSession.endSession();
+    }
   }
 };
 

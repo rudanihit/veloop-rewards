@@ -1,76 +1,151 @@
+import mongoose from "mongoose";
 import AdEvent from "../models/AdEvent.js";
 import ReferralProgress from "../models/ReferralProgress.js";
 import Referral from "../models/Referral.js";
 import { processReferralRewards } from "./reward.service.js";
+import ApiError from "../utils/ApiError.js";
+import { createAuditLog } from "./auditLog.service.js";
 
 const recordAdEvent = async ({
   eventId,
   userId,
   eventType,
-  eligible,
   occurredAt,
+  verified,
 }) => {
-  // Prevent the same ad event from being recorded twice
-  const existingEvent = await AdEvent.findOne({ eventId });
+  const session = await mongoose.startSession();
 
-  if (existingEvent) {
-    throw new Error("Ad event already exists");
-  }
+  try {
+    session.startTransaction();
 
-  // Find the referral progress belonging to this user
-  const progress = await ReferralProgress.findOne({
-    referredUserId: userId,
-  });
+    // 1. Prevent duplicate ad events
+    const existingEvent = await AdEvent.findOne({
+      eventId,
+    }).session(session);
 
-  if (!progress) {
-    throw new Error("Referral progress not found");
-  }
-
-  // Find the referral associated with this progress
-const referral = await Referral.findById(progress.referralId);
-
-if (!referral) {
-  throw new Error("Referral not found");
-}
-
-// Only pending referrals can accumulate eligible ad progress
-if (referral.status !== "PENDING") {
-  throw new Error("Referral is not eligible for ad progress");
-}
-
-  // Create the ad event
-  const adEvent = await AdEvent.create({
-    eventId,
-    userId,
-    eventType,
-    status: eligible ? "VERIFIED" : "REJECTED",
-    eligible,
-    occurredAt: occurredAt || new Date(),
-  });
-
-  // Only eligible ads increase referral progress
- if (eligible) {
-  const updatedProgress = await ReferralProgress.findByIdAndUpdate(
-    progress._id,
-    {
-      $inc: {
-        eligibleAdsWatched: 1,
-      },
-      $set: {
-        lastVerifiedAt: new Date(),
-      },
-    },
-    {
-      returnDocument: "after",
+    if (existingEvent) {
+      throw new ApiError(
+        409,
+        "Ad event already exists",
+        "AD_EVENT_ALREADY_EXISTS",
+      );
     }
-  );
 
-  await processReferralRewards(updatedProgress.referralId);
-}
+    // 2. Find referral progress
+    const progress = await ReferralProgress.findOne({
+      referredUserId: userId,
+    }).session(session);
 
-  return adEvent;
+    if (!progress) {
+      throw new ApiError(
+        404,
+        "Referral progress not found",
+        "REFERRAL_PROGRESS_NOT_FOUND",
+      );
+    }
+
+    // 3. Find the referral
+    const referral = await Referral.findById(
+      progress.referralId,
+    ).session(session);
+
+    if (!referral) {
+      throw new ApiError(
+        404,
+        "Referral not found",
+        "REFERRAL_NOT_FOUND",
+      );
+    }
+
+    // 4. Only pending referrals can accumulate ad progress
+    if (referral.status !== "PENDING") {
+      throw new ApiError(
+        409,
+        "Referral is not eligible for ad progress",
+        "REFERRAL_NOT_ELIGIBLE",
+      );
+    }
+
+    // 5. Create the ad event
+    const [adEvent] = await AdEvent.create(
+      [
+        {
+          eventId,
+          userId,
+          eventType,
+          status: verified ? "VERIFIED" : "REJECTED",
+          eligible: verified,
+          occurredAt: occurredAt || new Date(),
+        },
+      ],
+      { session },
+    );
+
+    // 6. Create audit log
+    await createAuditLog({
+      action: verified
+        ? "AD_EVENT_VERIFIED"
+        : "AD_EVENT_REJECTED",
+
+      userId,
+
+      adEventId: adEvent._id,
+
+      referralId: referral._id,
+
+      metadata: {
+        eventId,
+        eventType,
+        verified,
+      },
+
+      session,
+    });
+
+    // 7. Only verified ads increase progress
+    if (verified) {
+      const updatedProgress =
+        await ReferralProgress.findByIdAndUpdate(
+          progress._id,
+          {
+            $inc: {
+              eligibleAdsWatched: 1,
+            },
+            $set: {
+              lastVerifiedAt: new Date(),
+            },
+          },
+          {
+            returnDocument: "after",
+            session,
+          },
+        );
+
+      if (!updatedProgress) {
+        throw new ApiError(
+          404,
+          "Referral progress not found",
+          "REFERRAL_PROGRESS_NOT_FOUND",
+        );
+      }
+
+      // 8. Process rewards
+      await processReferralRewards(
+        updatedProgress.referralId,
+        session,
+      );
+    }
+
+    // 9. Commit everything together
+    await session.commitTransaction();
+
+    return adEvent;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    await session.endSession();
+  }
 };
 
-export {
-  recordAdEvent,
-};
+export { recordAdEvent };

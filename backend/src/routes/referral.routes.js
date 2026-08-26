@@ -21,7 +21,7 @@ router.post("/", createReferralController);
 router.get("/me", getMyReferralDashboardController);
 
 // Get referral statistics
-router.get("/stats/:userId", getMyReferralStats);
+router.get("/stats", getMyReferralStats);
 
 // Get referral progress
 router.get(

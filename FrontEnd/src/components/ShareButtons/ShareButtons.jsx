@@ -1,29 +1,60 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FaWhatsapp, FaInstagram, FaFacebookF } from 'react-icons/fa';
-import { Link2, Share2, Check } from 'lucide-react';
-import { referralInfo } from '../../utils/dummyData';
+import {
+  FaWhatsapp,
+  FaInstagram,
+  FaFacebookF,
+} from 'react-icons/fa';
+import {
+  Link2,
+  Share2,
+  Check,
+} from 'lucide-react';
+
 import { useWebShare } from '../../hooks/useWebShare';
+
 import styles from './ShareButtons.module.css';
 
-const shareUrl = 'https://' + referralInfo.link;
-const shareText =
-  'Join VELoop Rewards using my referral code ' +
-  referralInfo.code +
-  ' and start earning today!';
-const whatsappMessage = shareText + ' ' + shareUrl;
-
-function ShareButtons() {
+function ShareButtons({ dashboard }) {
   const [linkCopied, setLinkCopied] = useState(false);
+
   const { share, isSupported } = useWebShare();
+
+  const referralCode =
+    dashboard?.referralCode || '';
+
+  const referralLink =
+    dashboard?.referralLink || '';
+
+  const shareUrl = referralLink
+    ? new URL(
+        referralLink,
+        window.location.origin,
+      ).toString()
+    : window.location.origin;
+
+  const shareText =
+    `Join VELoop Rewards using my referral code ${referralCode} and start earning today!`;
+
+  const whatsappMessage =
+    `${shareText} ${shareUrl}`;
 
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      await navigator.clipboard.writeText(
+        shareUrl,
+      );
+
       setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
-    } catch (err) {
-      console.error('Copy failed', err);
+
+      setTimeout(() => {
+        setLinkCopied(false);
+      }, 2000);
+    } catch (error) {
+      console.error(
+        'Copy failed:',
+        error,
+      );
     }
   };
 
@@ -33,6 +64,7 @@ function ShareButtons() {
       text: shareText,
       url: shareUrl,
     });
+
     if (result.unsupported) {
       handleCopyLink();
     }
@@ -43,7 +75,11 @@ function ShareButtons() {
       id: 'whatsapp',
       label: 'WhatsApp',
       icon: <FaWhatsapp size={20} />,
-      href: 'https://wa.me/?text=' + encodeURIComponent(whatsappMessage),
+      href:
+        'https://wa.me/?text=' +
+        encodeURIComponent(
+          whatsappMessage,
+        ),
       colorClass: styles.whatsapp,
     },
     {
@@ -57,7 +93,9 @@ function ShareButtons() {
       id: 'facebook',
       label: 'Facebook',
       icon: <FaFacebookF size={20} />,
-      href: 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(shareUrl),
+      href:
+        'https://www.facebook.com/sharer/sharer.php?u=' +
+        encodeURIComponent(shareUrl),
       colorClass: styles.facebook,
     },
   ];
@@ -67,9 +105,14 @@ function ShareButtons() {
       className={styles.wrapper}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay: 0.4 }}
+      transition={{
+        duration: 0.6,
+        delay: 0.4,
+      }}
     >
-      <span className={styles.label}>Share via</span>
+      <span className={styles.label}>
+        Share via
+      </span>
 
       <div className={styles.buttonRow}>
         {buttons.map((btn) => (
@@ -78,24 +121,42 @@ function ShareButtons() {
             href={btn.href}
             target="_blank"
             rel="noopener noreferrer"
-            className={styles.iconBtn + ' ' + btn.colorClass}
-            aria-label={'Share via ' + btn.label}
+            className={
+              styles.iconBtn +
+              ' ' +
+              btn.colorClass
+            }
+            aria-label={
+              'Share via ' + btn.label
+            }
           >
             {btn.icon}
           </a>
         ))}
 
         <button
-          className={styles.iconBtn + ' ' + styles.copyLink}
+          className={
+            styles.iconBtn +
+            ' ' +
+            styles.copyLink
+          }
           onClick={handleCopyLink}
           aria-label="Copy referral link"
         >
-          {linkCopied ? <Check size={20} /> : <Link2 size={20} />}
+          {linkCopied ? (
+            <Check size={20} />
+          ) : (
+            <Link2 size={20} />
+          )}
         </button>
 
         {isSupported && (
           <button
-            className={styles.iconBtn + ' ' + styles.nativeShare}
+            className={
+              styles.iconBtn +
+              ' ' +
+              styles.nativeShare
+            }
             onClick={handleNativeShare}
             aria-label="More share options"
           >

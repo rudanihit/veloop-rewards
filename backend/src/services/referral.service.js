@@ -7,6 +7,8 @@ import ReferralReward from "../models/ReferralReward.js";
 import RewardTransaction from "../models/RewardTransaction.js";
 import { assessReferralRisk } from "./fraudDetection.service.js";
 import SpamReferral from "../models/SpamReferral.js";
+import ApiError from "../utils/ApiError.js";
+import { createAuditLog } from "./auditLog.service.js";
 
 const createReferral = async ({
   referrerUserId,
@@ -15,81 +17,139 @@ const createReferral = async ({
   attributionSource,
   deviceId,
 }) => {
-  // 1. Find the referrer using the referral code
-  const referrer = await User.findOne({
-    referralCode,
-  });
+  const session = await mongoose.startSession();
 
-  if (!referrer) {
-    throw new Error("Invalid referral code");
-  }
+  try {
+    session.startTransaction();
 
-  // 2. A user cannot refer themselves
-  if (referrer._id.toString() === referredUserId.toString()) {
-    throw new Error("A user cannot refer themselves");
-  }
+    // 1. Find the referrer using the referral code
+    const referrer = await User.findOne({
+      referralCode,
+    }).session(session);
 
-  // 3. Make sure the referred user exists
-  const referredUser = await User.findById(referredUserId);
+    if (!referrer) {
+      throw new ApiError(400, "Invalid referral code", "INVALID_REFERRAL_CODE");
+    }
 
-  if (!referredUser) {
-    throw new Error("Referred user not found");
-  }
+    // 2. A user cannot refer themselves
+    if (referrer._id.toString() === referredUserId.toString()) {
+      throw new ApiError(
+        400,
+        "A user cannot refer themselves",
+        "SELF_REFERRAL_DETECTED",
+      );
+    }
 
-  // 4. Check whether this user has already been referred
-  const existingReferral = await Referral.findOne({
-    referredUserId,
-  });
+    // 3. Make sure the referred user exists
+    const referredUser = await User.findById(referredUserId).session(session);
 
-  if (existingReferral) {
-    throw new Error("User has already been referred");
-  }
+    if (!referredUser) {
+      throw new ApiError(404, "Referred user not found", "USER_NOT_FOUND");
+    }
 
-  // 4.1. Assess referral fraud risk
-  const riskAssessment = await assessReferralRisk({
-    referrerUserId: referrer._id,
-    referredUserId: referredUser._id,
-    deviceId,
-  });
+    // 4. Check whether this user has already been referred
+    const existingReferral = await Referral.findOne({
+      referredUserId,
+    }).session(session);
 
-  // 4.2. Reject high-risk referrals
-  if (riskAssessment.status === "REJECTED") {
-    throw new Error(riskAssessment.reason);
-  }
+    if (existingReferral) {
+      throw new ApiError(
+        409,
+        "User has already been referred",
+        "REFERRAL_ALREADY_EXISTS",
+      );
+    }
 
-  // 4.3. Determine referral status
-  const referralStatus =
-    riskAssessment.status === "FRAUD_REVIEW" ? "FRAUD_REVIEW" : "PENDING";
-
-  // 5. Create the referral
-  const referral = await Referral.create({
-    referrerUserId: referrer._id,
-    referredUserId: referredUser._id,
-    referralCode: referrer.referralCode,
-    attributionSource,
-    status: referralStatus,
-  });
-
-  // 5.1. Create spam referral record for manual review
-  if (riskAssessment.status === "FRAUD_REVIEW") {
-    await SpamReferral.create({
-      referralId: referral._id,
+    // 5. Assess referral fraud risk
+    const riskAssessment = await assessReferralRisk({
       referrerUserId: referrer._id,
       referredUserId: referredUser._id,
-      reason: riskAssessment.reason,
-      riskScore: riskAssessment.riskScore,
-      status: "PENDING",
+      deviceId,
     });
+
+    // 6. Reject high-risk referrals
+    if (riskAssessment.status === "REJECTED") {
+      const errorCode = riskAssessment.signals?.includes("SELF_REFERRAL")
+        ? "SELF_REFERRAL_DETECTED"
+        : "FRAUD_REJECTED";
+
+      throw new ApiError(403, riskAssessment.reason, errorCode);
+    }
+
+    // 7. Determine referral status
+    const referralStatus =
+      riskAssessment.status === "FRAUD_REVIEW" ? "FRAUD_REVIEW" : "PENDING";
+
+    // 8. Create the referral
+    const [referral] = await Referral.create(
+      [
+        {
+          referrerUserId: referrer._id,
+          referredUserId: referredUser._id,
+          referralCode: referrer.referralCode,
+          attributionSource,
+          status: referralStatus,
+        },
+      ],
+      { session },
+    );
+
+    // 9. Create spam referral record for manual review
+    if (riskAssessment.status === "FRAUD_REVIEW") {
+      await SpamReferral.create(
+        [
+          {
+            referralId: referral._id,
+            referrerUserId: referrer._id,
+            referredUserId: referredUser._id,
+            reason: riskAssessment.reason,
+            riskScore: riskAssessment.riskScore,
+            status: "PENDING",
+          },
+        ],
+        { session },
+      );
+    }
+
+    // 10. Create progress tracking for the referral
+    await ReferralProgress.create(
+      [
+        {
+          referralId: referral._id,
+          referredUserId: referredUser._id,
+          eligibleAdsWatched: 0,
+        },
+      ],
+      { session },
+    );
+
+    await createAuditLog({
+      action: "REFERRAL_CREATED",
+      userId: referrer._id,
+      referralId: referral._id,
+      metadata: {
+        referredUserId: referredUser._id,
+        referralCode: referrer.referralCode,
+        attributionSource: attributionSource || null,
+        riskStatus: riskAssessment.status,
+        riskScore: riskAssessment.riskScore,
+      },
+      session,
+    });
+
+    // 11. Commit everything together
+    await session.commitTransaction();
+
+    return referral;
+  } catch (error) {
+    // Roll back Referral, SpamReferral and ReferralProgress
+    // if anything fails.
+    await session.abortTransaction();
+
+    throw error;
+  } finally {
+    await session.endSession();
   }
-
-  // 6. Create progress tracking for the referral
-  await ReferralProgress.create({
-    referralId: referral._id,
-    referredUserId: referredUser._id,
-    eligibleAdsWatched: 0,
-  });
-
-  return referral;
 };
 
 const getReferralStats = async (userId) => {
@@ -125,7 +185,7 @@ const getMyReferralDashboard = async (userId) => {
   const user = await User.findById(userId).select("email referralCode");
 
   if (!user) {
-    throw new Error("User not found");
+    throw new ApiError(404, "User not found");
   }
 
   // 2. Find all referrals made by this user
@@ -244,12 +304,12 @@ const getReferralProgress = async (referralId, userId) => {
   const referral = await Referral.findById(referralId).lean();
 
   if (!referral) {
-    throw new Error("Referral not found");
+    throw new ApiError(404, "Referral not found");
   }
 
   // 2. Only the referrer can view this referral's progress
   if (referral.referrerUserId.toString() !== userId.toString()) {
-    throw new Error("You are not authorized to view this referral");
+    throw new ApiError(403, "You are not authorized to view this referral");
   }
 
   // 3. Find referral progress
@@ -258,7 +318,7 @@ const getReferralProgress = async (referralId, userId) => {
   }).lean();
 
   if (!progress) {
-    throw new Error("Referral progress not found");
+    throw new ApiError(404, "Referral progress not found");
   }
 
   // 4. Get all active ad-based milestones
@@ -333,11 +393,14 @@ const completeReferral = async (referralId, userId) => {
     const referral = await Referral.findById(referralId).session(session);
 
     if (!referral) {
-      throw new Error("Referral not found");
+      throw new ApiError(404, "Referral not found");
     }
 
     if (referral.referrerUserId.toString() !== userId.toString()) {
-      throw new Error("You are not authorized to complete this referral");
+      throw new ApiError(
+        403,
+        "You are not authorized to complete this referral",
+      );
     }
 
     // 2. Prevent completing the same referral twice
@@ -348,7 +411,8 @@ const completeReferral = async (referralId, userId) => {
 
     // 3. Only a pending referral can become successful
     if (referral.status !== "PENDING") {
-      throw new Error(
+      throw new ApiError(
+        409,
         `Referral cannot be completed from status ${referral.status}`,
       );
     }
@@ -359,12 +423,15 @@ const completeReferral = async (referralId, userId) => {
     }).session(session);
 
     if (!progress) {
-      throw new Error("Referral progress not found");
+      throw new ApiError(404, "Referral progress not found");
     }
 
     // 5. Successful referral requires the final 35-ad qualification
     if (progress.eligibleAdsWatched < 35) {
-      throw new Error("Referral has not completed the required qualification");
+      throw new ApiError(
+        400,
+        "Referral has not completed the required qualification",
+      );
     }
 
     // 6. Find the configured Successful Referral XP milestone
@@ -376,7 +443,10 @@ const completeReferral = async (referralId, userId) => {
     }).session(session);
 
     if (!xpMilestone) {
-      throw new Error("Successful Referral XP milestone not configured");
+      throw new ApiError(
+        500,
+        "Successful Referral XP milestone not configured",
+      );
     }
 
     // 7. Prevent duplicate XP reward

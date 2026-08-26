@@ -8,6 +8,7 @@ import referralRoutes from "./routes/referral.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import adEventRoutes from "./routes/adEvent.routes.js";
 import deviceRoutes from "./routes/device.routes.js";
+import rateLimit from "express-rate-limit";
 
 const app = express();
 
@@ -16,6 +17,19 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan("dev"));
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    code: "RATE_LIMIT_EXCEEDED",
+    message: "Too many requests, please try again later",
+  },
+});
+
+app.use("/api/", apiLimiter);
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/referrals", referralRoutes);
