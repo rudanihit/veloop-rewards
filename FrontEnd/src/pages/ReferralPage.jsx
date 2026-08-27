@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
-
 import styles from "./ReferralPage.module.css";
-
 import Header from "../components/Header/Header";
 import Hero from "../components/Hero/Hero";
 import ReferralCard from "../components/ReferralCard/ReferralCard";
@@ -14,10 +12,15 @@ import ReferralRules from "../components/ReferralRules/ReferralRules";
 import FAQ from "../components/FAQ/FAQ";
 import Footer from "../components/Footer/Footer";
 
-import { devLogin, getReferralDashboard } from "../services/api";
+import {
+  devLogin,
+  getReferralDashboard,
+  getRewardMilestones,
+} from "../services/api";
 
 function ReferralPage() {
   const [dashboard, setDashboard] = useState(null);
+  const [milestones, setMilestones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -33,9 +36,13 @@ function ReferralPage() {
         }
 
         // Load real referral dashboard
-        const response = await getReferralDashboard();
+        const [dashboardResponse, milestonesResponse] = await Promise.all([
+          getReferralDashboard(),
+          getRewardMilestones(),
+        ]);
 
-        setDashboard(response?.data || null);
+        setDashboard(dashboardResponse?.data || null);
+        setMilestones(milestonesResponse?.data || []);
       } catch (err) {
         console.error("Failed to load referral dashboard:", err);
 
@@ -89,9 +96,11 @@ function ReferralPage() {
       <section className={styles.lightZone}>
         <div className="container">
           <StatsSection dashboard={dashboard} />
-          <ReferralProgress dashboard={dashboard} />
-          <RewardsSection dashboard={dashboard} />
-          <RewardTimeline dashboard={dashboard} />
+          <ReferralProgress dashboard={dashboard} milestones={milestones} />
+
+          <RewardsSection dashboard={dashboard} milestones={milestones} />
+
+          <RewardTimeline dashboard={dashboard} milestones={milestones} />
           <ReferralRules />
           <FAQ />
         </div>

@@ -4,34 +4,82 @@ import { Trophy, Target, Megaphone } from 'lucide-react';
 import styles from './ReferralProgress.module.css';
 import CoinScatterBackground from '../common/CoinScatterBackground';
 
-function ReferralProgress({ dashboard }) {
+function ReferralProgress({ dashboard, milestones }) {
   const pendingReferral =
     dashboard?.recentReferrals?.find(
       (referral) => referral.status === 'PENDING',
     );
 
-  const current = pendingReferral?.eligibleAdsWatched ?? 0;
-  const target = 35;
+  const current =
+    pendingReferral?.eligibleAdsWatched ?? 0;
 
-  const percent = Math.min(
-    100,
-    Math.round((current / target) * 100),
-  );
+  // Use backend-controlled ad milestones
+  const adMilestones = (milestones || [])
+    .filter(
+      (milestone) =>
+        milestone.requiredAds != null,
+    )
+    .sort(
+      (a, b) =>
+        a.requiredAds - b.requiredAds,
+    );
 
-  const remaining = Math.max(
-    0,
-    target - current,
-  );
+  // Find the next milestone that has not been reached
+  const nextMilestone =
+    adMilestones.find(
+      (milestone) =>
+        milestone.requiredAds > current,
+    ) || null;
 
-  const milestoneReached = current >= target;
+  // If all milestones are reached, use the final milestone
+  const finalMilestone =
+    adMilestones[adMilestones.length - 1] ||
+    null;
+
+  const target =
+    nextMilestone?.requiredAds ??
+    finalMilestone?.requiredAds ??
+    0;
+
+  const percent =
+    target > 0
+      ? Math.min(
+          100,
+          Math.round((current / target) * 100),
+        )
+      : 0;
+
+  const remaining =
+    Math.max(0, target - current);
+
+  const milestoneReached =
+    finalMilestone &&
+    current >= finalMilestone.requiredAds;
+
+  const rewardLabel = nextMilestone
+    ? `${nextMilestone.rewardAmount} ${nextMilestone.rewardType}`
+    : finalMilestone
+      ? `${finalMilestone.rewardAmount} ${finalMilestone.rewardType}`
+      : 'No milestones available';
 
   return (
     <motion.div
       className={styles.panel}
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-60px' }}
-      transition={{ duration: 0.6 }}
+      initial={{
+        opacity: 0,
+        y: 24,
+      }}
+      whileInView={{
+        opacity: 1,
+        y: 0,
+      }}
+      viewport={{
+        once: true,
+        margin: '-60px',
+      }}
+      transition={{
+        duration: 0.6,
+      }}
     >
       <CoinScatterBackground />
 
@@ -81,26 +129,37 @@ function ReferralProgress({ dashboard }) {
               {!pendingReferral
                 ? 'No pending referral is currently progressing'
                 : milestoneReached
-                  ? 'Milestone reached!'
-                  : `${remaining} more eligible ad watches to unlock the final referral milestone`}
+                  ? 'All ad-watch milestones reached!'
+                  : `${remaining} more eligible ad watches to unlock ${rewardLabel}`}
             </p>
           </div>
         </div>
 
         <div className={styles.rewardChip}>
           <Trophy size={16} />
-          <span>35 Ad Watches</span>
+
+          <span>
+            {nextMilestone
+              ? `${nextMilestone.requiredAds} Ad Watches`
+              : finalMilestone
+                ? `${finalMilestone.requiredAds} Ad Watches`
+                : 'No Milestone'}
+          </span>
         </div>
       </div>
 
       <div className={styles.barTrack}>
         <motion.div
           className={styles.barFill}
-          initial={{ width: 0 }}
+          initial={{
+            width: 0,
+          }}
           whileInView={{
             width: `${percent}%`,
           }}
-          viewport={{ once: true }}
+          viewport={{
+            once: true,
+          }}
           transition={{
             duration: 1.2,
             ease: 'easeOut',
@@ -118,7 +177,9 @@ function ReferralProgress({ dashboard }) {
             left: `${percent}%`,
             opacity: 1,
           }}
-          viewport={{ once: true }}
+          viewport={{
+            once: true,
+          }}
           transition={{
             duration: 1.2,
             ease: 'easeOut',
@@ -129,7 +190,8 @@ function ReferralProgress({ dashboard }) {
 
       <div className={styles.bottom}>
         <span className={styles.countLabel}>
-          <strong>{current}</strong> / {target} ad watches
+          <strong>{current}</strong> /{' '}
+          {target} ad watches
         </span>
 
         <span className={styles.percentLabel}>

@@ -1,57 +1,10 @@
-import { useRef } from 'react';
-import {
-  motion,
-  useMotionValue,
-  useSpring,
-  useTransform,
-} from 'framer-motion';
-import {
-  Lock,
-  CheckCircle2,
-  Sparkles,
-} from 'lucide-react';
+import { useRef } from "react";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { Lock, CheckCircle2, Sparkles } from "lucide-react";
 
-import FloatingOrbs from '../common/FloatingOrbs';
-import styles from './RewardsSection.module.css';
-import CoinScatterBackground from '../common/CoinScatterBackground';
-
-const rewardMilestones = [
-  {
-    id: 'r1',
-    title: '5000 SVE',
-    subtitle: '≈ ₹10',
-    condition: 'Friend completes 15 Ad Watch tasks',
-    requiredTasks: 15,
-  },
-  {
-    id: 'r2',
-    title: '2 Lucky Spins',
-    subtitle: null,
-    condition: 'Friend completes 20 Ad Watch tasks',
-    requiredTasks: 20,
-  },
-  {
-    id: 'r3',
-    title: '5000 Tokens',
-    subtitle: null,
-    condition: 'Friend completes 30 Ad Watch tasks',
-    requiredTasks: 30,
-  },
-  {
-    id: 'r4',
-    title: '10 Gems',
-    subtitle: null,
-    condition: 'Friend completes 35 Ad Watch tasks',
-    requiredTasks: 35,
-  },
-  {
-    id: 'r5',
-    title: '+20 XP',
-    subtitle: null,
-    condition: 'Awarded for every successful referral',
-    requiredTasks: 0,
-  },
-];
+import FloatingOrbs from "../common/FloatingOrbs";
+import styles from "./RewardsSection.module.css";
+import CoinScatterBackground from "../common/CoinScatterBackground";
 
 function TiltCard({ reward, index, unlocked }) {
   const ref = useRef(null);
@@ -76,15 +29,9 @@ function TiltCard({ reward, index, unlocked }) {
   const handleMouseMove = (e) => {
     const rect = ref.current.getBoundingClientRect();
 
-    const px =
-      (e.clientX - rect.left) /
-        rect.width -
-      0.5;
+    const px = (e.clientX - rect.left) / rect.width - 0.5;
 
-    const py =
-      (e.clientY - rect.top) /
-        rect.height -
-      0.5;
+    const py = (e.clientY - rect.top) / rect.height - 0.5;
 
     x.set(px);
     y.set(py);
@@ -98,15 +45,11 @@ function TiltCard({ reward, index, unlocked }) {
   return (
     <motion.div
       ref={ref}
-      className={`${styles.card} ${
-        unlocked
-          ? styles.unlocked
-          : styles.locked
-      }`}
+      className={`${styles.card} ${unlocked ? styles.unlocked : styles.locked}`}
       style={{
         rotateX,
         rotateY,
-        transformStyle: 'preserve-3d',
+        transformStyle: "preserve-3d",
       }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
@@ -120,7 +63,7 @@ function TiltCard({ reward, index, unlocked }) {
       }}
       viewport={{
         once: true,
-        margin: '-60px',
+        margin: "-60px",
       }}
       transition={{
         duration: 0.5,
@@ -130,40 +73,26 @@ function TiltCard({ reward, index, unlocked }) {
       <div
         className={styles.cardInner}
         style={{
-          transform: 'translateZ(30px)',
+          transform: "translateZ(30px)",
         }}
       >
         <div className={styles.statusIcon}>
-          {unlocked ? (
-            <CheckCircle2 size={18} />
-          ) : (
-            <Lock size={16} />
-          )}
+          {unlocked ? <CheckCircle2 size={18} /> : <Lock size={16} />}
         </div>
 
         <div className={styles.sparkleIcon}>
           <Sparkles size={26} />
         </div>
 
-        <h3 className={styles.rewardTitle}>
-          {reward.title}
-        </h3>
+        <h3 className={styles.rewardTitle}>{reward.title}</h3>
 
         {reward.subtitle && (
-          <p className={styles.rewardSubtitle}>
-            {reward.subtitle}
-          </p>
+          <p className={styles.rewardSubtitle}>{reward.subtitle}</p>
         )}
 
-        <p className={styles.condition}>
-          {reward.condition}
-        </p>
+        <p className={styles.condition}>{reward.condition}</p>
 
-        {unlocked && (
-          <div className={styles.unlockedBadge}>
-            Unlocked
-          </div>
-        )}
+        {unlocked && <div className={styles.unlockedBadge}>Unlocked</div>}
       </div>
 
       <div className={styles.shine} />
@@ -171,26 +100,33 @@ function TiltCard({ reward, index, unlocked }) {
   );
 }
 
-function RewardsSection({ dashboard }) {
+function RewardsSection({ dashboard, milestones }) {
   /*
    * Use the most recent pending referral for
    * milestone progress.
    */
-  const pendingReferral =
-    dashboard?.recentReferrals?.find(
-      (referral) =>
-        referral.status === 'PENDING',
-    );
+  const pendingReferral = dashboard?.recentReferrals?.find(
+    (referral) => referral.status === "PENDING",
+  );
 
-  const currentAds =
-    pendingReferral?.eligibleAdsWatched ?? 0;
+  const currentAds = pendingReferral?.eligibleAdsWatched ?? 0;
 
   /*
    * A successful referral has completed
    * the referral journey.
    */
-  const successfulReferrals =
-    dashboard?.successfulReferrals ?? 0;
+  const successfulReferrals = dashboard?.successfulReferrals ?? 0;
+
+  const rewardMilestones = (milestones || [])
+    .filter((milestone) => milestone.requiredAds)
+    .sort((a, b) => a.requiredAds - b.requiredAds)
+    .map((milestone) => ({
+      id: milestone._id,
+      title: `${milestone.rewardAmount} ${milestone.rewardType}`,
+      subtitle: null,
+      condition: `Friend completes ${milestone.requiredAds} Ad Watch tasks`,
+      requiredTasks: milestone.requiredAds,
+    }));
 
   return (
     <div className={styles.panel}>
@@ -215,35 +151,29 @@ function RewardsSection({ dashboard }) {
           duration: 0.5,
         }}
       >
-        <h2 className={styles.title}>
-          Referral Rewards
-        </h2>
+        <h2 className={styles.title}>Referral Rewards</h2>
 
         <p className={styles.subtitle}>
-          Unlock exciting rewards as your
-          friends complete tasks
+          Unlock exciting rewards as your friends complete tasks
         </p>
       </motion.div>
 
       <div className={styles.grid}>
-        {rewardMilestones.map(
-          (reward, i) => {
-            const unlocked =
-              reward.requiredTasks === 0
-                ? successfulReferrals > 0
-                : currentAds >=
-                  reward.requiredTasks;
+        {rewardMilestones.map((reward, i) => {
+          const unlocked =
+            reward.requiredTasks === 0
+              ? successfulReferrals > 0
+              : currentAds >= reward.requiredTasks;
 
-            return (
-              <TiltCard
-                key={reward.id}
-                reward={reward}
-                index={i}
-                unlocked={unlocked}
-              />
-            );
-          },
-        )}
+          return (
+            <TiltCard
+              key={reward.id}
+              reward={reward}
+              index={i}
+              unlocked={unlocked}
+            />
+          );
+        })}
       </div>
     </div>
   );

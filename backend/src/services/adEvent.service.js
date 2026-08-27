@@ -2,7 +2,9 @@ import mongoose from "mongoose";
 import AdEvent from "../models/AdEvent.js";
 import ReferralProgress from "../models/ReferralProgress.js";
 import Referral from "../models/Referral.js";
+import RewardMilestone from "../models/RewardMilestone.js";
 import { processReferralRewards } from "./reward.service.js";
+import { completeReferral } from "./referral.service.js";
 import ApiError from "../utils/ApiError.js";
 import { createAuditLog } from "./auditLog.service.js";
 
@@ -129,19 +131,47 @@ const recordAdEvent = async ({
         );
       }
 
-      // 8. Process rewards
+      // 8. Process reached milestone rewards
       await processReferralRewards(
         updatedProgress.referralId,
         session,
       );
+
+      // 9. Find the final active ad-watch milestone
+      const finalMilestone = await RewardMilestone.findOne({
+        isActive: true,
+        requiredAds: {
+          $ne: null,
+        },
+      })
+        .sort({
+          requiredAds: -1,
+        })
+        .session(session);
+
+      // 10. Complete referral when final milestone is reached
+      if (
+        finalMilestone &&
+        updatedProgress.eligibleAdsWatched >=
+          finalMilestone.requiredAds
+      ) {
+        await completeReferral(
+          updatedProgress.referralId,
+          referral.referrerUserId,
+          session,
+        );
+      }
     }
 
-    // 9. Commit everything together
+    // 11. Commit everything together
     await session.commitTransaction();
 
     return adEvent;
   } catch (error) {
-    await session.abortTransaction();
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
+
     throw error;
   } finally {
     await session.endSession();

@@ -9,6 +9,7 @@ import authRoutes from "./routes/auth.routes.js";
 import adEventRoutes from "./routes/adEvent.routes.js";
 import deviceRoutes from "./routes/device.routes.js";
 import rateLimit from "express-rate-limit";
+import rewardMilestoneRoutes from "./routes/rewardMilestone.route.js";
 
 const app = express();
 
@@ -33,6 +34,10 @@ app.use("/api/", apiLimiter);
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/referrals", referralRoutes);
+app.use(
+  "/api/rewards/milestones",
+  rewardMilestoneRoutes,
+);
 app.use("/api/ad-events", adEventRoutes);
 app.use("/api/devices", deviceRoutes);
 app.use(errorHandler);

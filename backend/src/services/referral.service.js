@@ -383,29 +383,50 @@ const getReferralProgress = async (referralId, userId) => {
   };
 };
 
-const completeReferral = async (referralId, userId) => {
-  const session = await mongoose.startSession();
+const completeReferral = async (
+  referralId,
+  userId,
+  session = null,
+) => {
+  const ownSession = !session;
+  const currentSession =
+    session || (await mongoose.startSession());
 
   try {
-    session.startTransaction();
-
-    // 1. Find the referral
-    const referral = await Referral.findById(referralId).session(session);
-
-    if (!referral) {
-      throw new ApiError(404, "Referral not found");
+    if (ownSession) {
+      currentSession.startTransaction();
     }
 
-    if (referral.referrerUserId.toString() !== userId.toString()) {
+    // 1. Find the referral
+    const referral = await Referral.findById(
+      referralId,
+    ).session(currentSession);
+
+    if (!referral) {
+      throw new ApiError(
+        404,
+        "Referral not found",
+        "REFERRAL_NOT_FOUND",
+      );
+    }
+
+    if (
+      referral.referrerUserId.toString() !==
+      userId.toString()
+    ) {
       throw new ApiError(
         403,
         "You are not authorized to complete this referral",
+        "FORBIDDEN",
       );
     }
 
     // 2. Prevent completing the same referral twice
     if (referral.status === "SUCCESSFUL") {
-      await session.commitTransaction();
+      if (ownSession) {
+        await currentSession.commitTransaction();
+      }
+
       return referral;
     }
 
@@ -414,49 +435,81 @@ const completeReferral = async (referralId, userId) => {
       throw new ApiError(
         409,
         `Referral cannot be completed from status ${referral.status}`,
+        "REFERRAL_NOT_ELIGIBLE",
       );
     }
 
     // 4. Find referral progress
     const progress = await ReferralProgress.findOne({
       referralId: referral._id,
-    }).session(session);
+    }).session(currentSession);
 
     if (!progress) {
-      throw new ApiError(404, "Referral progress not found");
-    }
-
-    // 5. Successful referral requires the final 35-ad qualification
-    if (progress.eligibleAdsWatched < 35) {
       throw new ApiError(
-        400,
-        "Referral has not completed the required qualification",
+        404,
+        "Referral progress not found",
+        "REFERRAL_PROGRESS_NOT_FOUND",
       );
     }
 
-    // 6. Find the configured Successful Referral XP milestone
-    const xpMilestone = await RewardMilestone.findOne({
-      name: "Successful Referral XP",
-      rewardType: "XP",
-      rewardAmount: 20,
-      isActive: true,
-    }).session(session);
+    // 5. Find the final active ad-watch milestone
+    const finalAdMilestone =
+      await RewardMilestone.findOne({
+        isActive: true,
+        requiredAds: {
+          $ne: null,
+        },
+      })
+        .sort({
+          requiredAds: -1,
+        })
+        .session(currentSession);
+
+    if (!finalAdMilestone) {
+      throw new ApiError(
+        500,
+        "No active ad-watch milestone configured",
+        "FINAL_MILESTONE_NOT_CONFIGURED",
+      );
+    }
+
+    // 6. Referral must reach the final milestone
+    if (
+      progress.eligibleAdsWatched <
+      finalAdMilestone.requiredAds
+    ) {
+      throw new ApiError(
+        400,
+        "Referral has not completed the required qualification",
+        "REFERRAL_NOT_QUALIFIED",
+      );
+    }
+
+    // 7. Find Successful Referral XP milestone
+    const xpMilestone =
+      await RewardMilestone.findOne({
+        name: "Successful Referral XP",
+        rewardType: "XP",
+        isActive: true,
+      }).session(currentSession);
 
     if (!xpMilestone) {
       throw new ApiError(
         500,
         "Successful Referral XP milestone not configured",
+        "XP_MILESTONE_NOT_CONFIGURED",
       );
     }
 
-    // 7. Prevent duplicate XP reward
-    const existingReward = await ReferralReward.findOne({
-      referralId: referral._id,
-      milestoneId: xpMilestone._id,
-    }).session(session);
+    // 8. Prevent duplicate XP reward
+    const existingReward =
+      await ReferralReward.findOne({
+        referralId: referral._id,
+        milestoneId: xpMilestone._id,
+      }).session(currentSession);
 
     if (!existingReward) {
-      // 8. Create referral reward
+      // Create referral reward
       const referralReward = new ReferralReward({
         referralId: referral._id,
         referrerUserId: referral.referrerUserId,
@@ -467,55 +520,73 @@ const completeReferral = async (referralId, userId) => {
         creditedAt: new Date(),
       });
 
-      await referralReward.save({ session });
-
-      // 9. Create XP reward transaction
-      const rewardTransaction = new RewardTransaction({
-        userId: referral.referrerUserId,
-        referralId: referral._id,
-        referralRewardId: referralReward._id,
-        rewardType: "XP",
-        amount: 20,
-        direction: "CREDIT",
-        status: "COMPLETED",
-        idempotencyKey: `${referral._id}-${xpMilestone._id}`,
-        reason: "Successful Referral",
-        processedAt: new Date(),
+      await referralReward.save({
+        session: currentSession,
       });
 
-      await rewardTransaction.save({ session });
+      // Create XP reward transaction
+      const rewardTransaction =
+        new RewardTransaction({
+          userId: referral.referrerUserId,
+          referralId: referral._id,
+          referralRewardId: referralReward._id,
+          rewardType: xpMilestone.rewardType,
+          amount: xpMilestone.rewardAmount,
+          direction: "CREDIT",
+          status: "COMPLETED",
+          idempotencyKey: `${referral._id}-${xpMilestone._id}`,
+          reason: "Successful Referral",
+          processedAt: new Date(),
+        });
 
-      // 10. Update actual XP balance
+      await rewardTransaction.save({
+        session: currentSession,
+      });
+
+      // Update actual XP balance
       await User.updateOne(
         {
           _id: referral.referrerUserId,
         },
         {
           $inc: {
-            "balances.xp": 20,
+            "balances.xp":
+              xpMilestone.rewardAmount,
           },
         },
         {
-          session,
+          session: currentSession,
         },
       );
     }
 
-    // 11. Mark referral successful
+    // 9. Mark referral successful
     referral.status = "SUCCESSFUL";
     referral.completedAt = new Date();
 
-    await referral.save({ session });
+    await referral.save({
+      session: currentSession,
+    });
 
-    // 12. Commit transaction
-    await session.commitTransaction();
+    // 10. Commit only if this function owns the transaction
+    if (ownSession) {
+      await currentSession.commitTransaction();
+    }
 
     return referral;
   } catch (error) {
-    await session.abortTransaction();
+    if (
+      ownSession &&
+      currentSession.inTransaction()
+    ) {
+      await currentSession.abortTransaction();
+    }
+
     throw error;
   } finally {
-    await session.endSession();
+    if (ownSession) {
+      await currentSession.endSession();
+    }
   }
 };
 

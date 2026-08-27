@@ -5,7 +5,7 @@ const getToken = () => {
   return localStorage.getItem("veloop_token");
 };
 
-const request = async (endpoint, options = {}) => {
+const request = async (endpoint, options = {}, retry = true) => {
   const token = getToken();
 
   const headers = {
@@ -24,9 +24,27 @@ const request = async (endpoint, options = {}) => {
 
   const data = await response.json();
 
+  // Automatically refresh the development token
+  // when the current token has expired.
+  if (response.status === 401 && retry) {
+    try {
+      const loginResponse = await devLogin("dev@veloop.local");
+
+      if (loginResponse?.data?.token) {
+        return request(endpoint, options, false);
+      }
+    } catch (loginError) {
+      console.error(
+        "Automatic development login failed:",
+        loginError,
+      );
+    }
+  }
+
   if (!response.ok) {
     throw new Error(
-      data?.message || "Something went wrong with the request",
+      data?.message ||
+        "Something went wrong with the request",
     );
   }
 
@@ -34,13 +52,20 @@ const request = async (endpoint, options = {}) => {
 };
 
 const devLogin = async (email) => {
-  const response = await request("/auth/dev-login", {
-    method: "POST",
-    body: JSON.stringify({ email }),
-  });
+  const response = await request(
+    "/auth/dev-login",
+    {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    },
+    false,
+  );
 
   if (response?.data?.token) {
-    localStorage.setItem("veloop_token", response.data.token);
+    localStorage.setItem(
+      "veloop_token",
+      response.data.token,
+    );
   }
 
   if (response?.data?.user) {
@@ -59,6 +84,10 @@ const getReferralDashboard = async () => {
 
 const getReferralStats = async () => {
   return request("/referrals/stats");
+};
+
+const getRewardMilestones = async () => {
+  return request("/rewards/milestones");
 };
 
 const createReferral = async ({
@@ -114,6 +143,7 @@ export {
   devLogin,
   getReferralDashboard,
   getReferralStats,
+  getRewardMilestones,
   createReferral,
   getReferralProgress,
   completeReferral,
