@@ -12,6 +12,10 @@ info:
 servers:
   - url: http://localhost:4000
     description: Local development server
+  - url: https://staging-api.veloop.example.com
+    description: Staging server
+  - url: https://api.veloop.example.com
+    description: Production server
 
 tags:
   - name: Health
@@ -21,11 +25,16 @@ tags:
   - name: Ad Events
   - name: Devices
 
+security:
+  - bearerAuth: []
+
 paths:
   /api/health:
     get:
       tags: [Health]
       summary: Health check
+      operationId: getHealth
+      security: []
       responses:
         '200':
           description: API is running
@@ -33,11 +42,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
+        '5XX':
+          $ref: '#/components/responses/ServerError'
 
   /api/auth/dev-login:
     post:
       tags: [Authentication]
       summary: Development login
+      operationId: devLogin
+      security: []
       description: |
         Development-only login endpoint. This route is not registered when
         NODE_ENV=production.
@@ -59,20 +72,30 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthSession'
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
           description: Development user not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '429':
           $ref: '#/components/responses/RateLimit'
+        '5XX':
+          $ref: '#/components/responses/ServerError'
 
   /api/referrals:
     post:
       tags: [Referrals]
       summary: Create a referral
-      security:
-        - bearerAuth: []
+      operationId: createReferral
       requestBody:
         required: true
         content:
@@ -85,107 +108,191 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Referral'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '409':
           description: Referral or fraud validation conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ServerError'
 
   /api/referrals/me:
     get:
       tags: [Referrals]
       summary: Get my referral dashboard
-      security:
-        - bearerAuth: []
+      operationId: getMyReferralDashboard
       responses:
         '200':
           description: Referral dashboard fetched successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ReferralDashboard'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '5XX':
+          $ref: '#/components/responses/ServerError'
 
   /api/referrals/stats:
     get:
       tags: [Referrals]
       summary: Get my referral statistics
-      security:
-        - bearerAuth: []
+      operationId: getMyReferralStats
       responses:
         '200':
           description: Referral statistics fetched successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ReferralStats'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '5XX':
+          $ref: '#/components/responses/ServerError'
 
   /api/referrals/{referralId}/progress:
     get:
       tags: [Referrals]
       summary: Get referral progress
-      security:
-        - bearerAuth: []
+      operationId: getReferralProgress
       parameters:
         - $ref: '#/components/parameters/ReferralId'
       responses:
         '200':
           description: Referral progress fetched successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ReferralProgress'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           description: Referral or progress not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ServerError'
 
   /api/referrals/{referralId}/complete:
     post:
       tags: [Referrals]
       summary: Complete a qualified referral
+      operationId: completeReferral
       description: |
         Completes a pending referral after the final active ad-watch milestone
         has been reached and awards the configured Successful Referral XP milestone.
-      security:
-        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/ReferralId'
       responses:
         '200':
           description: Referral completed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Referral'
         '400':
           description: Referral has not completed the required qualification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           description: Authenticated user is not authorized to complete the referral
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Referral, progress, or configured XP milestone not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '409':
           description: Referral cannot be completed from its current status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '5XX':
+          $ref: '#/components/responses/ServerError'
 
   /api/rewards/milestones:
     get:
       tags: [Rewards]
       summary: Get active reward milestones
-      security:
-        - bearerAuth: []
+      operationId: getActiveMilestones
       responses:
         '200':
           description: Reward milestones fetched successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Milestone'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '5XX':
+          $ref: '#/components/responses/ServerError'
 
   /api/ad-events:
     post:
       tags: [Ad Events]
       summary: Record a verified ad event
+      operationId: recordAdEvent
       description: |
-        Records a VIDEO_AD_COMPLETED event. Only requests with devVerified=true
-        are treated as verified in the current development implementation.
-        Verified events increment referral progress and trigger milestone processing.
-      security:
-        - bearerAuth: []
+        Records a VIDEO_AD_COMPLETED event. Verified events increment referral
+        progress and trigger milestone processing.
+
+        **Note:** the `devVerified` field is a non-production convenience used
+        only in local/dev environments to simulate a verified ad-network
+        callback. It is excluded from this spec's production server context
+        and must not be exposed as a client-settable field in production;
+        verification there is derived server-side from the ad network's signed
+        callback, not from client input.
       requestBody:
         required: true
         content:
@@ -198,24 +305,38 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdEvent'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           description: Referral progress or referral not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '409':
           description: Duplicate event or referral not eligible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '429':
           $ref: '#/components/responses/RateLimit'
+        '5XX':
+          $ref: '#/components/responses/ServerError'
 
   /api/devices/register:
     post:
       tags: [Devices]
       summary: Register or check a device association
-      security:
-        - bearerAuth: []
+      operationId: registerDevice
       requestBody:
         required: true
         content:
@@ -230,10 +351,21 @@ paths:
       responses:
         '200':
           description: Device registered successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Device'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '5XX':
+          $ref: '#/components/responses/ServerError'
 
 components:
   securitySchemes:
@@ -248,10 +380,16 @@ components:
       in: path
       required: true
       schema:
-        type: string
+        $ref: '#/components/schemas/ObjectId'
       example: 6a8ec8b46bedbf56ffc46445
 
   schemas:
+    ObjectId:
+      type: string
+      pattern: '^[a-f0-9]{24}$'
+      description: MongoDB ObjectId (24-character hex string)
+      example: 6a8ec8b46bedbf56ffc46445
+
     HealthResponse:
       type: object
       properties:
@@ -290,6 +428,31 @@ components:
           type: string
           example: Invalid request
 
+    AuthSession:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT bearer token to use in the Authorization header
+        userId:
+          $ref: '#/components/schemas/ObjectId'
+        email:
+          type: string
+          format: email
+
+    ReferralStatus:
+      type: string
+      description: |
+        Lifecycle state of a referral. `pending` referrals accumulate verified
+        ad-watch progress; `completed` referrals have been awarded the
+        Successful Referral XP milestone; `failed` referrals were rejected
+        (e.g. by fraud detection) and can no longer progress.
+      enum:
+        - pending
+        - completed
+        - failed
+      example: pending
+
     CreateReferralRequest:
       type: object
       required:
@@ -297,8 +460,7 @@ components:
         - referralCode
       properties:
         referredUserId:
-          type: string
-          example: 6a8ec89cbc47a6590906a256
+          $ref: '#/components/schemas/ObjectId'
         referralCode:
           type: string
           example: DEV12345
@@ -308,6 +470,107 @@ components:
         deviceId:
           type: string
           example: DEVICE-FRAUD-E2E-001
+
+    Referral:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/ObjectId'
+        referrerUserId:
+          $ref: '#/components/schemas/ObjectId'
+        referredUserId:
+          $ref: '#/components/schemas/ObjectId'
+        referralCode:
+          type: string
+          example: DEV12345
+        status:
+          $ref: '#/components/schemas/ReferralStatus'
+        attributionSource:
+          type: string
+          example: direct
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    ReferralDashboard:
+      type: object
+      properties:
+        referral:
+          $ref: '#/components/schemas/Referral'
+        progress:
+          $ref: '#/components/schemas/ReferralProgress'
+        milestones:
+          type: array
+          items:
+            $ref: '#/components/schemas/Milestone'
+
+    ReferralStats:
+      type: object
+      properties:
+        totalReferrals:
+          type: integer
+          example: 12
+        completedReferrals:
+          type: integer
+          example: 7
+        pendingReferrals:
+          type: integer
+          example: 4
+        failedReferrals:
+          type: integer
+          example: 1
+        totalRewardsEarned:
+          type: integer
+          example: 350
+          description: Total reward points/XP earned across all referrals
+
+    ReferralProgress:
+      type: object
+      properties:
+        referralId:
+          $ref: '#/components/schemas/ObjectId'
+        verifiedAdEventsCount:
+          type: integer
+          example: 3
+        requiredAdEventsCount:
+          type: integer
+          example: 5
+        lastEventAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    MilestoneType:
+      type: string
+      enum:
+        - AD_WATCH
+        - XP
+      example: AD_WATCH
+
+    Milestone:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/ObjectId'
+        name:
+          type: string
+          example: Successful Referral XP
+        type:
+          $ref: '#/components/schemas/MilestoneType'
+        threshold:
+          type: integer
+          description: Number of qualifying events required to trigger this milestone
+          example: 5
+        rewardAmount:
+          type: integer
+          example: 100
+        active:
+          type: boolean
+          example: true
 
     AdEventRequest:
       type: object
@@ -330,6 +593,50 @@ components:
         devVerified:
           type: boolean
           example: true
+          description: |
+            Development-only flag. When true, treats the event as verified
+            without an ad-network callback. Not honored outside development
+            environments.
+
+    AdEvent:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/ObjectId'
+        eventId:
+          type: string
+          example: TRANSACTION-TEST-003
+        eventType:
+          type: string
+          enum:
+            - VIDEO_AD_COMPLETED
+        referralId:
+          $ref: '#/components/schemas/ObjectId'
+        verified:
+          type: boolean
+          example: true
+        occurredAt:
+          type: string
+          format: date-time
+        recordedAt:
+          type: string
+          format: date-time
+
+    Device:
+      type: object
+      properties:
+        deviceId:
+          type: string
+          example: DEVICE-FRAUD-E2E-001
+        userId:
+          $ref: '#/components/schemas/ObjectId'
+        firstSeenAt:
+          type: string
+          format: date-time
+        associatedUserCount:
+          type: integer
+          description: Number of distinct user accounts associated with this device
+          example: 1
 
   responses:
     BadRequest:
@@ -346,6 +653,18 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     RateLimit:
       description: Rate limit exceeded
+      headers:
+        Retry-After:
+          description: Seconds to wait before retrying
+          schema:
+            type: integer
+            example: 30
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ServerError:
+      description: Unexpected server error
       content:
         application/json:
           schema:
