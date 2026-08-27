@@ -2,7 +2,18 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
 
 const getToken = () => {
-  return localStorage.getItem("veloop_token");
+  const storedToken = localStorage.getItem("veloop_token");
+
+  if (storedToken) {
+    return storedToken;
+  }
+
+  // Demo production token
+  if (import.meta.env.PROD && import.meta.env.VITE_DEMO_TOKEN) {
+    return import.meta.env.VITE_DEMO_TOKEN;
+  }
+
+  return null;
 };
 
 const request = async (endpoint, options = {}, retry = true) => {
