@@ -1,0 +1,352 @@
+openapi: 3.0.3
+info:
+  title: VELoop Rewards Referral API
+  version: 1.0.0
+  description: |
+    API documentation for the VELoop Rewards referral backend.
+
+    The backend is the source of truth for referral progress, verified ad events,
+    milestone rewards, reward transactions, balances, referral completion,
+    fraud detection, and device association checks.
+
+servers:
+  - url: http://localhost:4000
+    description: Local development server
+
+tags:
+  - name: Health
+  - name: Authentication
+  - name: Referrals
+  - name: Rewards
+  - name: Ad Events
+  - name: Devices
+
+paths:
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      responses:
+        '200':
+          description: API is running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/auth/dev-login:
+    post:
+      tags: [Authentication]
+      summary: Development login
+      description: |
+        Development-only login endpoint. This route is not registered when
+        NODE_ENV=production.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: dev@veloop.local
+      responses:
+        '200':
+          description: Development login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Development user not found
+        '429':
+          $ref: '#/components/responses/RateLimit'
+
+  /api/referrals:
+    post:
+      tags: [Referrals]
+      summary: Create a referral
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReferralRequest'
+      responses:
+        '201':
+          description: Referral created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Referral or fraud validation conflict
+
+  /api/referrals/me:
+    get:
+      tags: [Referrals]
+      summary: Get my referral dashboard
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Referral dashboard fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/referrals/stats:
+    get:
+      tags: [Referrals]
+      summary: Get my referral statistics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Referral statistics fetched successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/referrals/{referralId}/progress:
+    get:
+      tags: [Referrals]
+      summary: Get referral progress
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ReferralId'
+      responses:
+        '200':
+          description: Referral progress fetched successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Referral or progress not found
+
+  /api/referrals/{referralId}/complete:
+    post:
+      tags: [Referrals]
+      summary: Complete a qualified referral
+      description: |
+        Completes a pending referral after the final active ad-watch milestone
+        has been reached and awards the configured Successful Referral XP milestone.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ReferralId'
+      responses:
+        '200':
+          description: Referral completed successfully
+        '400':
+          description: Referral has not completed the required qualification
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Authenticated user is not authorized to complete the referral
+        '404':
+          description: Referral, progress, or configured XP milestone not found
+        '409':
+          description: Referral cannot be completed from its current status
+
+  /api/rewards/milestones:
+    get:
+      tags: [Rewards]
+      summary: Get active reward milestones
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Reward milestones fetched successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/ad-events:
+    post:
+      tags: [Ad Events]
+      summary: Record a verified ad event
+      description: |
+        Records a VIDEO_AD_COMPLETED event. Only requests with devVerified=true
+        are treated as verified in the current development implementation.
+        Verified events increment referral progress and trigger milestone processing.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdEventRequest'
+      responses:
+        '201':
+          description: Ad event recorded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Referral progress or referral not found
+        '409':
+          description: Duplicate event or referral not eligible
+        '429':
+          $ref: '#/components/responses/RateLimit'
+
+  /api/devices/register:
+    post:
+      tags: [Devices]
+      summary: Register or check a device association
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deviceId]
+              properties:
+                deviceId:
+                  type: string
+                  example: DEVICE-FRAUD-E2E-001
+      responses:
+        '200':
+          description: Device registered successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    ReferralId:
+      name: referralId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: 6a8ec8b46bedbf56ffc46445
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: VELoop API is working
+
+    ApiResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+          example: 200
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Operation completed successfully
+        data:
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        code:
+          type: string
+          example: INVALID_REQUEST
+        message:
+          type: string
+          example: Invalid request
+
+    CreateReferralRequest:
+      type: object
+      required:
+        - referredUserId
+        - referralCode
+      properties:
+        referredUserId:
+          type: string
+          example: 6a8ec89cbc47a6590906a256
+        referralCode:
+          type: string
+          example: DEV12345
+        attributionSource:
+          type: string
+          example: direct
+        deviceId:
+          type: string
+          example: DEVICE-FRAUD-E2E-001
+
+    AdEventRequest:
+      type: object
+      required:
+        - eventId
+        - eventType
+      properties:
+        eventId:
+          type: string
+          example: TRANSACTION-TEST-003
+        eventType:
+          type: string
+          enum:
+            - VIDEO_AD_COMPLETED
+          example: VIDEO_AD_COMPLETED
+        occurredAt:
+          type: string
+          format: date-time
+          example: 2026-08-27T04:04:45.796Z
+        devVerified:
+          type: boolean
+          example: true
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Authentication required or token invalid/expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    RateLimit:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
