@@ -8,8 +8,11 @@ const startServer = async () => {
   await connectDB();
 
   app.listen(PORT, () => {
-    console.log(`VELoop backend running on http://localhost:${PORT}`);
+    console.log(`VELoop backend running on port ${PORT}`);
   });
 };
 
-startServer();
+startServer().catch((error) => {
+  console.error("Failed to start server:", error);
+  process.exit(1);
+});
