@@ -25,8 +25,12 @@ const request = async (endpoint, options = {}, retry = true) => {
   const data = await response.json();
 
   // Automatically refresh the development token
-  // when the current token has expired.
-  if (response.status === 401 && retry) {
+  // only during local development.
+  if (
+    response.status === 401 &&
+    retry &&
+    import.meta.env.DEV
+  ) {
     try {
       const loginResponse = await devLogin("dev@veloop.local");
 
