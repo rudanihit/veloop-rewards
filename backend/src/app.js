@@ -12,6 +12,12 @@ import rateLimit from "express-rate-limit";
 import rewardMilestoneRoutes from "./routes/rewardMilestone.route.js";
 
 const app = express();
+app.get("/", (req, res) => {
+  res.json({
+    success: true,
+    message: "VELoop API is running",
+  });
+});
 
 app.use(helmet());
 app.use(
