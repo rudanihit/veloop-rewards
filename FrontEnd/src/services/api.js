@@ -36,25 +36,24 @@ const request = async (endpoint, options = {}, retry = true) => {
   const data = await response.json();
 
   // Automatically refresh the development token
-  // only during local development.
-  if (
-    response.status === 401 &&
-    retry &&
-    import.meta.env.DEV
-  ) {
-    try {
-      const loginResponse = await devLogin("dev@veloop.local");
+ if (
+  response.status === 401 &&
+  retry &&
+  import.meta.env.DEV
+) {
+  try {
+    const loginResponse = await devLogin("dev@veloop.local");
 
-      if (loginResponse?.data?.token) {
-        return request(endpoint, options, false);
-      }
-    } catch (loginError) {
-      console.error(
-        "Automatic development login failed:",
-        loginError,
-      );
+    if (loginResponse?.data?.token) {
+      return request(endpoint, options, false);
     }
+  } catch (loginError) {
+    console.error(
+      "Automatic development login failed:",
+      loginError,
+    );
   }
+}
 
   if (!response.ok) {
     throw new Error(
