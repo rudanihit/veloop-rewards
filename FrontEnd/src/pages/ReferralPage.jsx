@@ -13,6 +13,7 @@ import FAQ from "../components/FAQ/FAQ";
 import Footer from "../components/Footer/Footer";
 
 import {
+  devLogin,
   getReferralDashboard,
   getRewardMilestones,
 } from "../services/api";
@@ -28,6 +29,10 @@ function ReferralPage() {
       try {
         setLoading(true);
         setError("");
+
+        if (!localStorage.getItem("veloop_token")) {
+          await devLogin("dev@veloop.local");
+        }
 
         // Load real referral dashboard
         const [dashboardResponse, milestonesResponse] = await Promise.all([
